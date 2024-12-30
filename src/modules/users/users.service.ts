@@ -20,6 +20,47 @@ export class UsersService {
     return compareSync(password, hashPassword);
   }
 
+  async updateUserRefreshToken(
+    id: number,
+    refresh_token: string | null,
+  ): Promise<User> {
+    try {
+      const user = await this.prisma.user.update({
+        where: {
+          id,
+        },
+        data: {
+          refresh_token,
+        },
+      });
+      return user;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async findRefreshTokenByUserId(id: number) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          roleId: true,
+          refresh_token: true,
+        },
+      });
+      return user;
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
+  }
+
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
       const user = await this.findOneByEmail(createUserDto.email);
@@ -59,6 +100,38 @@ export class UsersService {
     } catch (error) {
       console.log(error);
       throw error;
+    }
+  }
+
+  async getAccountUserAuth(id: number) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          active: true,
+          roleId: true,
+          role: {
+            select: {
+              id: true,
+              name: true,
+              active: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      return user;
+    } catch (error) {
+      return null;
     }
   }
 
