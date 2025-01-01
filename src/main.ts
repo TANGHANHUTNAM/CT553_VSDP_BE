@@ -4,7 +4,6 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
@@ -22,8 +21,9 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:4000'],
+    origin: ['http://localhost:4000', 'http://localhost:3000'],
     methods: 'GET, HEAD, PUT, PATCH, POST, DELETE',
+    credentials: true,
   });
 
   // config version

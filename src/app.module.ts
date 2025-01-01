@@ -11,6 +11,8 @@ import { RolesModule } from './modules/roles/roles.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { Authorization } from './auth/guards/auth.guard';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { HealthModule } from './health/health.module';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     AuthModule,
     RolesModule,
     PermissionsModule,
+    HealthModule,
+    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [

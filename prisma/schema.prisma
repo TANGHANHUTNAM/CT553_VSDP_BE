@@ -25,6 +25,7 @@ model User {
   refresh_token     String?
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
+  deleted_at        DateTime?
   roleId            Int
   role              Role      @relation(fields: [roleId], references: [id])
 }
@@ -35,6 +36,7 @@ model Role {
   description String?
   created_at  DateTime?        @default(now())
   updated_at  DateTime?        @updatedAt
+  deleted_at  DateTime?
   active      Boolean          @default(true)
   permissions RolePermission[]
   users       User[]
@@ -47,10 +49,11 @@ model Permission {
   method     String?
   created_at DateTime?        @default(now())
   updated_at DateTime?        @updatedAt
+  deleted_at DateTime?
   api_path   String?
   roles      RolePermission[]
 
-   @@unique([api_path, method])
+  @@unique([api_path, method])
 }
 
 model RolePermission {

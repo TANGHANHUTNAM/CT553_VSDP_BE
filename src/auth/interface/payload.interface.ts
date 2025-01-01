@@ -3,5 +3,6 @@ export interface IPayload {
   email: string;
   name: string;
   roleId: number;
+  active?: boolean;
   sub: string;
 }

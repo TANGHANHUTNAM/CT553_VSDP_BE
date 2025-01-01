@@ -103,6 +103,28 @@ export class UsersService {
     }
   }
 
+  async getAccountUser(id: number): Promise<User> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+        include: {
+          role: true,
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      delete user.password;
+      delete user.refresh_token;
+      return user;
+    } catch (error) {
+      return null;
+    }
+  }
+
   async getAccountUserAuth(id: number) {
     try {
       const user = await this.prisma.user.findUnique({
@@ -167,6 +189,9 @@ export class UsersService {
       const user = await this.prisma.user.findUnique({
         where: {
           email,
+        },
+        include: {
+          role: true,
         },
       });
 

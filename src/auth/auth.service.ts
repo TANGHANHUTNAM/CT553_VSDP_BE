@@ -11,6 +11,7 @@ import { IPayload } from './interface/payload.interface';
 import { Response } from 'express';
 import ms from 'ms';
 import { KEY_COOKIE } from 'src/shared/constant';
+import { User } from '@prisma/client';
 @Injectable()
 export class AuthService {
   constructor(
@@ -29,7 +30,18 @@ export class AuthService {
       delete user.password;
       return isValidPassword ? user : null;
     }
+
     return null;
+  }
+
+  async getAccount(user: IUser) {
+    try {
+      const account = await this.usersService.getAccountUser(user.id);
+      return { account };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 
   async login(user: IUser, response: Response) {

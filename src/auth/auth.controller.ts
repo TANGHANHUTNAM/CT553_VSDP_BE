@@ -23,7 +23,7 @@ export class AuthController {
   @ResMessage('Get account success')
   @Get('account')
   handleGetAccount(@ReqUser() user: IUser) {
-    return { user };
+    return this.authService.getAccount(user);
   }
 
   @Public()

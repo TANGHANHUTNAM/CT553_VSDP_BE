@@ -46,12 +46,8 @@ export class Authorization implements CanActivate {
       throw new UnauthorizedException('Unauthorized');
     }
 
-    if (userAuth.role.name === 'ADMIN') {
-      return true;
-    }
-
     if (!userAuth.active) {
-      throw new ForbiddenException('Your account is not active');
+      throw new ForbiddenException('Tài khoản của bạn đã bị khóa!');
     }
 
     if (!userAuth.role.active) {

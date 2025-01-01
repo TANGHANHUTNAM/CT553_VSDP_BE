@@ -17,7 +17,6 @@ export class PermissionsService {
     api_path: string,
     method: string,
   ): Promise<boolean> {
-    console.log('roleId', roleId, 'api_path', api_path, 'method', method);
     const permission = await this.prisma.permission.findFirst({
       where: {
         roles: {
