@@ -5,14 +5,22 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { initFirebaseApp } from './config/firebase.app';
 
 async function bootstrap() {
+  initFirebaseApp();
+
   const app = await NestFactory.create(AppModule);
   const reflector = app.get(Reflector);
   const configService = app.get(ConfigService);
 
   // global pipes
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true, // Kích hoạt transform
+      whitelist: true, // Loại bỏ các field không định nghĩa trong DTO
+    }),
+  );
 
   // global interceptors
   app.useGlobalInterceptors(new TransformInterceptor(reflector));

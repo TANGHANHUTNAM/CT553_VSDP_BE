@@ -11,7 +11,6 @@ import { RolesService } from 'src/modules/roles/roles.service';
 import { UsersService } from 'src/modules/users/users.service';
 import { PERMISSION_DATA } from './data/permissions.data';
 import { ROLE, ROLE_DATA } from './data/roles.data';
-import { permission } from 'process';
 
 const logger = new ConsoleLogger();
 

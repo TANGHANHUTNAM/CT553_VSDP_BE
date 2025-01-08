@@ -3,15 +3,14 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { UsersService } from 'src/modules/users/users.service';
-import { JwtService } from '@nestjs/jwt';
-import { IUser } from 'src/modules/users/interface/users.interface';
 import { ConfigService } from '@nestjs/config';
-import { IPayload } from './interface/payload.interface';
+import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
 import ms from 'ms';
+import { IUser } from 'src/modules/users/interface/users.interface';
+import { UsersService } from 'src/modules/users/users.service';
 import { KEY_COOKIE } from 'src/shared/constant';
-import { User } from '@prisma/client';
+import { IPayload } from './interface/payload.interface';
 @Injectable()
 export class AuthService {
   constructor(
@@ -19,6 +18,11 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
   ) {}
+
+  async validateUserGoogle(email: string) {
+    const user = await this.usersService.findOneByEmail(email);
+    return user ?? null;
+  }
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.usersService.findOneByEmail(email);
@@ -37,7 +41,7 @@ export class AuthService {
   async getAccount(user: IUser) {
     try {
       const account = await this.usersService.getAccountUser(user.id);
-      return { account };
+      return { user: account };
     } catch (error) {
       console.log(error);
       throw error;
@@ -47,14 +51,14 @@ export class AuthService {
   async login(user: IUser, response: Response) {
     const payload: IPayload = {
       email: user.email,
-      sub: 'access token login',
+      sub: 'access token',
       id: user.id,
       name: user.name,
       roleId: user.roleId,
     };
     const refreshToken = this.createRefreshToken({
       ...payload,
-      sub: 'refresh token login',
+      sub: 'refresh token',
     });
     await this.usersService.updateUserRefreshToken(user.id, refreshToken);
 
@@ -91,11 +95,11 @@ export class AuthService {
       const payload: IPayload = this.jwtService.verify(refresh_token, {
         secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
       });
+
       const user = await this.usersService.findRefreshTokenByUserId(payload.id);
-      console.log(user);
 
       if (!user || user.refresh_token !== refresh_token) {
-        throw new UnauthorizedException('Invalid token sss');
+        throw new UnauthorizedException('Invalid token');
       }
 
       const newPayload: IPayload = {
@@ -106,7 +110,6 @@ export class AuthService {
         roleId: user.roleId,
       };
 
-      console.log(newPayload);
       const newRefreshToken = this.createRefreshToken({
         ...newPayload,
         sub: 'refresh token',
@@ -114,7 +117,7 @@ export class AuthService {
 
       await this.usersService.updateUserRefreshToken(user.id, newRefreshToken);
       response.clearCookie(KEY_COOKIE.REFRESH_TOKEN);
-      response.cookie(KEY_COOKIE.REFRESH_TOKEN, refresh_token, {
+      response.cookie(KEY_COOKIE.REFRESH_TOKEN, newRefreshToken, {
         httpOnly: true,
         maxAge: ms(this.configService.get<string>('MAX_AGE_COOKIE')),
       });
@@ -124,10 +127,11 @@ export class AuthService {
       };
     } catch (error) {
       console.log(error);
+
       if (error.name === 'TokenExpiredError') {
-        throw new UnauthorizedException('Token expired');
+        throw new UnauthorizedException('Refresh Token expired');
       } else if (error.name === 'JsonWebTokenError') {
-        throw new BadRequestException('Invalid token');
+        throw new BadRequestException('Invalid Refresh Token');
       } else throw error;
     }
   }

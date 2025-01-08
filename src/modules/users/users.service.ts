@@ -5,6 +5,7 @@ import { User } from '@prisma/client';
 import { PrismaService } from 'src/core/service/prisma.service';
 import { hashSync, genSaltSync, compareSync } from 'bcrypt';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { UserQuery } from './interface/user.query.interface';
 
 @Injectable()
 export class UsersService {
@@ -86,24 +87,61 @@ export class UsersService {
     }
   }
 
-  async findAll() {
+  //
+  async findAll(query: UserQuery) {
+    const { search, current, pageSize } = query;
     try {
+      const currentPage = current || 1;
+      const itemsPerPage = pageSize || 10;
+      const skip = (currentPage - 1) * itemsPerPage;
+      const take = itemsPerPage;
+
+      const whereClause: any = search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {};
+
       const users = await this.prisma.user.findMany({
+        where: whereClause,
         include: {
           role: true,
         },
+        skip,
+        take,
       });
-      return users.map((user) => {
+
+      const userSanitized = users.map((user) => {
         delete user.password;
+        delete user.refresh_token;
+        delete user.deleted_at;
+        delete user.role.deleted_at;
         return user;
       });
+
+      const totalRecords = await this.prisma.user.count({
+        where: whereClause,
+      });
+
+      return {
+        users: userSanitized,
+        pagination: {
+          current: currentPage,
+          pageSize: itemsPerPage,
+          totalRecords,
+          totalPages: Math.ceil(totalRecords / itemsPerPage),
+        },
+      };
     } catch (error) {
-      console.log(error);
+      console.error(error);
       throw error;
     }
   }
 
-  async getAccountUser(id: number): Promise<User> {
+  async getAccountUser(id: number) {
     try {
       const user = await this.prisma.user.findUnique({
         where: {
@@ -117,9 +155,31 @@ export class UsersService {
       if (!user) {
         throw new NotFoundException('User not found');
       }
+
+      const permissions = await this.prisma.permission.findMany({
+        where: {
+          roles: {
+            some: {
+              roleId: user.roleId,
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          api_path: true,
+          method: true,
+          module: true,
+        },
+      });
+
       delete user.password;
       delete user.refresh_token;
-      return user;
+      delete user.deleted_at;
+      delete user.role.deleted_at;
+
+      const account = { ...user, permissions };
+      return account;
     } catch (error) {
       return null;
     }

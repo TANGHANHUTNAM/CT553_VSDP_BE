@@ -26,9 +26,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest(err, user, info, context: ExecutionContext) {
     if (err || !user) {
-      throw err || new UnauthorizedException('Token is invalid or expired');
+      throw err || new UnauthorizedException('Token hết hạn hoặc không hợp lệ');
     }
-
     return user;
   }
 }

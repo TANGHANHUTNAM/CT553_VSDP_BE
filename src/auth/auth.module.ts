@@ -7,11 +7,14 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { AuthController } from './auth.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { FirebaseAuthStrategy } from './strategies/firebase-auth.strategy';
+import passport from 'passport';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
+    PassportModule.register({ defaultStrategy: 'firebase-jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -23,7 +26,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
+  providers: [AuthService, LocalStrategy, JwtStrategy, FirebaseAuthStrategy],
   controllers: [AuthController],
+  exports: [PassportModule],
 })
 export class AuthModule {}

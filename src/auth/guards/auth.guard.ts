@@ -36,10 +36,6 @@ export class Authorization implements CanActivate {
     const routePath = request.route?.path;
     const method = request.method;
 
-    if (routePath === '/api/v1/auth/logout' && method === 'POST') {
-      return true;
-    }
-
     const userAuth = await this.userService.getAccountUserAuth(user.id);
 
     if (!userAuth) {
@@ -51,9 +47,7 @@ export class Authorization implements CanActivate {
     }
 
     if (!userAuth.role.active) {
-      throw new ForbiddenException(
-        'You dont have permission to access this resource',
-      );
+      throw new ForbiddenException('Bạn không có quyền truy cập!');
     }
 
     const isPermission = await this.permissionService.checkPermission(
@@ -63,9 +57,7 @@ export class Authorization implements CanActivate {
     );
 
     if (!isPermission) {
-      throw new ForbiddenException(
-        'You dont have permission to access this resource',
-      );
+      throw new ForbiddenException('Bạn không có quyền truy cập!');
     }
 
     return true;
