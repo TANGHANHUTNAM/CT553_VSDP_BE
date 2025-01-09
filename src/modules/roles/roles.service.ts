@@ -7,6 +7,7 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { PrismaService } from 'src/core/service/prisma.service';
 import { Role } from '@prisma/client';
+import { SUPER_ADMIN } from 'src/shared/constant';
 
 @Injectable()
 export class RolesService {
@@ -42,8 +43,35 @@ export class RolesService {
     }
   }
 
-  findAll() {
-    return `This action returns all roles`;
+  async findAllWithPagination() {
+    try {
+      const roles = await this.prisma.role.findMany();
+      return roles;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async findAll() {
+    try {
+      const roles = await this.prisma.role.findMany({
+        select: {
+          id: true,
+          name: true,
+        },
+        where: {
+          active: true,
+        },
+        orderBy: {
+          id: 'asc',
+        },
+      });
+      return roles;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 
   findOne(id: number) {

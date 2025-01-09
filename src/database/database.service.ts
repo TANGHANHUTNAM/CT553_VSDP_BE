@@ -11,6 +11,7 @@ import { RolesService } from 'src/modules/roles/roles.service';
 import { UsersService } from 'src/modules/users/users.service';
 import { PERMISSION_DATA } from './data/permissions.data';
 import { ROLE, ROLE_DATA } from './data/roles.data';
+import { SUPER_ADMIN } from 'src/shared/constant';
 
 const logger = new ConsoleLogger();
 
@@ -67,9 +68,9 @@ export class DatabaseService implements OnModuleInit {
         }
         await this.prismaService.user.create({
           data: {
-            email: 'superadmin@gmail.com',
-            password: this.userService.getHashPassword('123456'),
-            name: 'Super Admin',
+            email: SUPER_ADMIN.email,
+            password: this.userService.getHashPassword(SUPER_ADMIN.password),
+            name: SUPER_ADMIN.name,
             roleId: adminRole.id,
           },
         });

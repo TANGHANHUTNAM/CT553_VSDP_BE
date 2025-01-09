@@ -1,11 +1,17 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from '@prisma/client';
+import { Gender, User } from '@prisma/client';
 import { PrismaService } from 'src/core/service/prisma.service';
 import { hashSync, genSaltSync, compareSync } from 'bcrypt';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { UserQuery } from './interface/user.query.interface';
+import { updateUserStatusDto } from './dto/update-user-status.dto';
+import { SUPER_ADMIN } from 'src/shared/constant';
 
 @Injectable()
 export class UsersService {
@@ -66,13 +72,15 @@ export class UsersService {
     try {
       const user = await this.findOneByEmail(createUserDto.email);
       if (user) {
-        throw new ConflictException('Email already exists');
+        throw new ConflictException('Người dùng đã tồn tại!');
       }
+
+      const password = '123456';
 
       const newUser = await this.prisma.user.create({
         data: {
           ...createUserDto,
-          password: this.getHashPassword(createUserDto.password),
+          password: this.getHashPassword(password),
         },
       });
       delete newUser.password;
@@ -81,29 +89,32 @@ export class UsersService {
     } catch (error) {
       console.log(error);
       if (error.code === 'P2002') {
-        throw new ConflictException('Email already exists');
+        throw new ConflictException('Người dùng đã tồn tại!');
       }
       throw error;
     }
   }
 
-  //
   async findAll(query: UserQuery) {
-    const { search, current, pageSize } = query;
+    const { search, current, pageSize, role, status, sortByUpdatedAt } = query;
     try {
       const currentPage = current || 1;
       const itemsPerPage = pageSize || 10;
       const skip = (currentPage - 1) * itemsPerPage;
       const take = itemsPerPage;
 
-      const whereClause: any = search
-        ? {
-            OR: [
-              { name: { contains: search, mode: 'insensitive' } },
-              { email: { contains: search, mode: 'insensitive' } },
-            ],
-          }
-        : {};
+      const whereClause: any = {
+        ...(search && {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+          ],
+        }),
+        ...(role && { roleId: Number(role) }),
+        ...(status !== undefined && {
+          active: status === 'active' ? true : false,
+        }),
+      };
 
       const users = await this.prisma.user.findMany({
         where: whereClause,
@@ -112,6 +123,9 @@ export class UsersService {
         },
         skip,
         take,
+        orderBy: {
+          updated_at: sortByUpdatedAt === 'descend' ? 'desc' : 'asc',
+        },
       });
 
       const userSanitized = users.map((user) => {
@@ -227,12 +241,16 @@ export class UsersService {
         where: {
           id,
         },
+        include: {
+          role: true,
+        },
       });
 
       if (!user) {
         throw new NotFoundException('User not found');
       }
       delete user.password;
+      delete user.refresh_token;
       return user;
     } catch (error) {
       console.log(error);
@@ -262,8 +280,79 @@ export class UsersService {
     }
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async updateStatus(id: number, status: number) {
+    try {
+      if (!id) {
+        throw new BadRequestException('Id is required');
+      }
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+      });
+      if (user && user.email === SUPER_ADMIN.email) {
+        throw new ForbiddenException(
+          'Không thể thay đổi trạng thái của tài khoản này',
+        );
+      }
+
+      const updatedUser = await this.prisma.user.update({
+        where: {
+          id,
+        },
+        data: {
+          active: status === 1 ? true : false,
+        },
+      });
+      delete updatedUser.password;
+      delete updatedUser.refresh_token;
+      return updatedUser;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async update(id: number, updateUserDto: UpdateUserDto) {
+    try {
+      if (!id) {
+        throw new BadRequestException('Id bắt buộc');
+      }
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (user && user.email === SUPER_ADMIN.email) {
+        throw new ForbiddenException(
+          'Không thể thay đổi thông tin của tài khoản này',
+        );
+      }
+
+      const updatedUser = await this.prisma.user.update({
+        where: {
+          id,
+        },
+        data: {
+          name: updateUserDto?.name,
+          phone_number: updateUserDto?.phone_number || null,
+          company: updateUserDto?.company || null,
+          date_of_birth: updateUserDto?.date_of_birth || null,
+          generation: updateUserDto?.generation || null,
+          is_external_guest: updateUserDto?.is_external_guest || false,
+          major: updateUserDto?.major || null,
+          school: updateUserDto?.school || null,
+          gender: updateUserDto?.gender as Gender,
+        },
+      });
+      delete updatedUser.password;
+      delete updatedUser.refresh_token;
+      return updatedUser;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 
   remove(id: number) {

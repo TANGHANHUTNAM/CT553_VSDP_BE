@@ -17,13 +17,20 @@ import { updateRoleStatusDto } from './dto/update-role-status.dto';
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
-  @ResMessage('Create role success')
+  @ResMessage('Tạo vai trò thành công!')
   @Post()
   create(@Body() createRoleDto: CreateRoleDto) {
     return this.rolesService.create(createRoleDto);
   }
 
+  @ResMessage('Lấy danh sách vai trò thành công!')
   @Get()
+  findAllWithPagination() {
+    return this.rolesService.findAllWithPagination();
+  }
+
+  @ResMessage('Lấy tất cả vai trò thành công!')
+  @Get('/all')
   findAll() {
     return this.rolesService.findAll();
   }

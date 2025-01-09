@@ -12,7 +12,7 @@ model User {
   name              String
   email             String    @unique
   password          String
-  date_of_birth     DateTime?
+  date_of_birth     DateTime? 
   gender            Gender?
   phone_number      String?
   avatar            String?
