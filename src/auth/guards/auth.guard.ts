@@ -50,6 +50,13 @@ export class Authorization implements CanActivate {
       throw new ForbiddenException('Bạn không có quyền truy cập!');
     }
 
+    if (
+      routePath === '/api/v1/auth/logout' ||
+      routePath === '/api/v1/auth/account'
+    ) {
+      return true;
+    }
+
     const isPermission = await this.permissionService.checkPermission(
       userAuth.roleId,
       routePath,

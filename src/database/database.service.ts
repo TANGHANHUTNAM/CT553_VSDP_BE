@@ -51,7 +51,6 @@ export class DatabaseService implements OnModuleInit {
           },
         });
 
-        console.log(adminRole);
         if (adminRole.permissions.length === 0) {
           const permissions = await this.prismaService.permission.findMany();
           console.log('Permissions:', permissions);

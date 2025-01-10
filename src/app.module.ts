@@ -45,10 +45,10 @@ import { DatabaseModule } from './database/database.module';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-    {
-      provide: APP_GUARD,
-      useClass: Authorization,
-    },
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: Authorization,
+    // },
   ],
 })
 export class AppModule {}

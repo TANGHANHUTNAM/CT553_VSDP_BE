@@ -1,17 +1,17 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { Gender, User } from '@prisma/client';
+import { compareSync, genSaltSync, hashSync } from 'bcrypt';
 import { PrismaService } from 'src/core/service/prisma.service';
-import { hashSync, genSaltSync, compareSync } from 'bcrypt';
-import { ConflictException, NotFoundException } from '@nestjs/common';
-import { UserQuery } from './interface/user.query.interface';
-import { updateUserStatusDto } from './dto/update-user-status.dto';
 import { SUPER_ADMIN } from 'src/shared/constant';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UserQuery } from './dto/query-pagination-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -111,7 +111,7 @@ export class UsersService {
           ],
         }),
         ...(role && { roleId: Number(role) }),
-        ...(status !== undefined && {
+        ...(status && {
           active: status === 'active' ? true : false,
         }),
       };
@@ -124,21 +124,22 @@ export class UsersService {
         skip,
         take,
         orderBy: {
-          updated_at: sortByUpdatedAt === 'descend' ? 'desc' : 'asc',
+          updated_at:
+            sortByUpdatedAt === 'descend'
+              ? 'desc'
+              : sortByUpdatedAt === 'ascend'
+                ? 'asc'
+                : undefined,
         },
       });
 
       const userSanitized = users.map((user) => {
         delete user.password;
         delete user.refresh_token;
-        delete user.deleted_at;
-        delete user.role.deleted_at;
         return user;
       });
 
-      const totalRecords = await this.prisma.user.count({
-        where: whereClause,
-      });
+      const totalRecords = await this.prisma.user.count({ where: whereClause });
 
       return {
         users: userSanitized,
@@ -146,7 +147,6 @@ export class UsersService {
           current: currentPage,
           pageSize: itemsPerPage,
           totalRecords,
-          totalPages: Math.ceil(totalRecords / itemsPerPage),
         },
       };
     } catch (error) {
@@ -189,8 +189,6 @@ export class UsersService {
 
       delete user.password;
       delete user.refresh_token;
-      delete user.deleted_at;
-      delete user.role.deleted_at;
 
       const account = { ...user, permissions };
       return account;
@@ -344,6 +342,7 @@ export class UsersService {
           major: updateUserDto?.major || null,
           school: updateUserDto?.school || null,
           gender: updateUserDto?.gender as Gender,
+          roleId: updateUserDto?.roleId,
         },
       });
       delete updatedUser.password;

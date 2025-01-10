@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -8,6 +9,8 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { PrismaService } from 'src/core/service/prisma.service';
 import { Role } from '@prisma/client';
 import { SUPER_ADMIN } from 'src/shared/constant';
+import { RoleQuery } from './dto/query-pagination-role.dto';
+import { updateRolePermissionsDto } from './dto/update-role-permissions.dto';
 
 @Injectable()
 export class RolesService {
@@ -43,10 +46,47 @@ export class RolesService {
     }
   }
 
-  async findAllWithPagination() {
+  async findAllWithPagination(query: RoleQuery) {
+    const { search, current, pageSize, status, sortByUpdatedAt } = query;
     try {
-      const roles = await this.prisma.role.findMany();
-      return roles;
+      const currentPage = current || 1;
+      const itemsPerPage = pageSize || 10;
+      const skip = (currentPage - 1) * itemsPerPage;
+      const take = itemsPerPage;
+
+      const whereClause: any = {
+        ...(search && {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+          ],
+        }),
+        ...(status && {
+          active: status === 'active' ? true : false,
+        }),
+      };
+
+      const roles = await this.prisma.role.findMany({
+        where: whereClause,
+        orderBy: {
+          updated_at:
+            (sortByUpdatedAt ?? sortByUpdatedAt === 'descend') ? 'desc' : 'asc',
+        },
+        skip,
+        take,
+      });
+
+      const totalRecords = await this.prisma.role.count({
+        where: whereClause,
+      });
+      return {
+        roles,
+        pagination: {
+          current: currentPage,
+          pageSize: itemsPerPage,
+          totalRecords,
+        },
+      };
     } catch (error) {
       console.log(error);
       throw error;
@@ -81,7 +121,7 @@ export class RolesService {
   async update(id: number, updateRoleDto: UpdateRoleDto) {
     try {
       if (!id) {
-        throw new BadRequestException('Role id is required');
+        throw new BadRequestException('Id là bắt buộc');
       }
 
       const role = await this.prisma.role.update({
@@ -94,8 +134,83 @@ export class RolesService {
     } catch (error) {
       console.log(error);
       if (error.code === 'P2002') {
-        throw new ConflictException('Role name already exists');
+        throw new ConflictException('Vai trò đã tồn tại');
       }
+      throw error;
+    }
+  }
+
+  async updateRolePermission(id: number, body: updateRolePermissionsDto) {
+    const { permissions } = body;
+    try {
+      if (!id) {
+        throw new BadRequestException('Id là bắt buộc');
+      }
+
+      const roleAdmin = await this.prisma.role.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (roleAdmin.name === SUPER_ADMIN.name) {
+        throw new ForbiddenException(
+          'Không thể cập nhật quyền hạn của vai trò quản trị hệ thống',
+        );
+      }
+
+      const validPermissions = await this.prisma.permission.findMany({
+        where: {
+          id: {
+            in: permissions,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      const validPermissionIds = validPermissions.map((p) => p.id);
+      const invalidPermissionIds = permissions.filter(
+        (id) => !validPermissionIds.includes(id),
+      );
+      if (invalidPermissionIds.length > 0) {
+        throw new BadRequestException(
+          `Các permissionId không tồn tại: ${invalidPermissionIds.join(', ')}`,
+        );
+      }
+
+      await this.prisma.rolePermission.deleteMany({
+        where: {
+          roleId: id,
+          permissionId: {
+            notIn: validPermissionIds,
+          },
+        },
+      });
+
+      const upsertPromises = validPermissionIds.map((permissionId) => {
+        return this.prisma.rolePermission.upsert({
+          where: {
+            roleId_permissionId: {
+              roleId: id,
+              permissionId: permissionId,
+            },
+          },
+          create: {
+            roleId: id,
+            permissionId: permissionId,
+          },
+          update: {},
+        });
+      });
+
+      await Promise.all(upsertPromises);
+      return {
+        permissions: validPermissionIds,
+      };
+    } catch (error) {
+      console.log(error);
       throw error;
     }
   }
@@ -103,7 +218,19 @@ export class RolesService {
   async updateRoleStatus(id: number, status: number): Promise<Role> {
     try {
       if (!id) {
-        throw new BadRequestException('Role id is required');
+        throw new BadRequestException('Id là bắt buộc');
+      }
+
+      const roleAdmin = await this.prisma.role.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (roleAdmin.name === SUPER_ADMIN.name) {
+        throw new ForbiddenException(
+          'Không thể cập nhật trạng thái của vai trò quản trị hệ thống',
+        );
       }
 
       const role = await this.prisma.role.update({

@@ -16,31 +16,6 @@ export const METHOD = {
 };
 
 export const PERMISSION_DATA = [
-  // AUTH
-  {
-    name: 'Đăng nhập',
-    api_path: VERSION + '/auth/login',
-    method: METHOD.POST,
-    module: MODULES.AUTH,
-  },
-  {
-    name: 'Đăng xuất',
-    api_path: VERSION + '/auth/logout',
-    method: METHOD.POST,
-    module: MODULES.AUTH,
-  },
-  {
-    name: 'Lấy thông tin tài khoản người dùng',
-    api_path: VERSION + '/auth/account',
-    method: METHOD.GET,
-    module: MODULES.AUTH,
-  },
-  {
-    name: 'Lấy refresh token',
-    api_path: VERSION + '/auth/refresh_token',
-    method: METHOD.GET,
-    module: MODULES.AUTH,
-  },
   // USER
   {
     name: 'Lấy danh sách người dùng có phân trang',
@@ -72,10 +47,22 @@ export const PERMISSION_DATA = [
     method: METHOD.DELETE,
     module: MODULES.USER,
   },
+  {
+    name: 'Cập nhật trạng thái người dùng',
+    api_path: VERSION + '/users/status/:id',
+    method: METHOD.PATCH,
+    module: MODULES.USER,
+  },
   // ROLE
   {
     name: 'Lấy danh sách role có phân trang',
     api_path: VERSION + '/roles',
+    method: METHOD.GET,
+    module: MODULES.ROLE,
+  },
+  {
+    name: 'Lấy tất cả role',
+    api_path: VERSION + '/roles/all',
     method: METHOD.GET,
     module: MODULES.ROLE,
   },
@@ -109,6 +96,12 @@ export const PERMISSION_DATA = [
     method: METHOD.PATCH,
     module: MODULES.ROLE,
   },
+  {
+    name: 'Cập nhật quyền hạn role',
+    api_path: VERSION + '/roles/permission/:id',
+    method: METHOD.PATCH,
+    module: MODULES.ROLE,
+  },
   // PERMISSION
   {
     name: 'Lấy danh sách permission có phân trang',
@@ -138,6 +131,18 @@ export const PERMISSION_DATA = [
     name: 'Xóa permission',
     api_path: VERSION + '/permissions/:id',
     method: METHOD.DELETE,
+    module: MODULES.PERMISSION,
+  },
+  {
+    name: 'Lấy tất cả permission',
+    api_path: VERSION + '/permissions/all',
+    method: METHOD.GET,
+    module: MODULES.PERMISSION,
+  },
+  {
+    name: 'Lấy tất cả quyền hạn của vai trò',
+    api_path: VERSION + '/permissions/role/:id',
+    method: METHOD.GET,
     module: MODULES.PERMISSION,
   },
 ];

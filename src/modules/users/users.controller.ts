@@ -12,7 +12,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 import { QueryParams } from 'src/shared/utils';
-import { UserQuery } from './interface/user.query.interface';
+import { UserQuery } from './dto/query-pagination-user.dto';
 import { User } from './entities/user.entity';
 import { updateUserStatusDto } from './dto/update-user-status.dto';
 import { ResMessage } from 'src/common/decorators/response.decorator';
@@ -21,11 +21,13 @@ import { ResMessage } from 'src/common/decorators/response.decorator';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @ResMessage('Tạo mới người dùng thành công!')
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
+  @ResMessage('Lấy danh sách người dùng có phân trang thành công!')
   @Get()
   findAll(@Query() query: UserQuery) {
     return this.usersService.findAll(query);
