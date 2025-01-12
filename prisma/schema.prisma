@@ -12,17 +12,21 @@ model User {
   name              String
   email             String    @unique
   password          String
-  date_of_birth     DateTime? 
+  date_of_birth     DateTime?
   gender            Gender?
   phone_number      String?
-  avatar            String?
+  avatar_url        String?
+  public_id         String?
   generation        String?
+  job_title         String?
   school            String?
   major             String?
   company           String?
   active            Boolean   @default(true)
   is_external_guest Boolean   @default(false)
   refresh_token     String?
+  start_date       DateTime?
+  end_date         DateTime?
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
   roleId            Int

@@ -10,6 +10,13 @@ import { IS_PUBLIC_KEY } from 'src/common/decorators/public.decorator';
 import { PermissionsService } from 'src/modules/permissions/permissions.service';
 import { UsersService } from 'src/modules/users/users.service';
 
+const white_list_route = [
+  '/api/v1/auth/logout',
+  '/api/v1/auth/account',
+  '/api/v1/users/me/profile',
+  '/api/v1/users/upload/avatar',
+];
+
 @Injectable()
 export class Authorization implements CanActivate {
   constructor(
@@ -51,8 +58,8 @@ export class Authorization implements CanActivate {
     }
 
     if (
-      routePath === '/api/v1/auth/logout' ||
-      routePath === '/api/v1/auth/account'
+      white_list_route.includes(routePath) ||
+      white_list_route.includes(`${routePath}, "${method}"`)
     ) {
       return true;
     }

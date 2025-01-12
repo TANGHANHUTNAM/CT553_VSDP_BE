@@ -12,10 +12,16 @@ import { SUPER_ADMIN } from 'src/shared/constant';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserQuery } from './dto/query-pagination-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UploadAvatarUserDto } from './dto/upload-avatar-user.dto';
+import { IUser } from './interface/users.interface';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   getHashPassword(password: string) {
     const salt = genSaltSync(10);
@@ -322,12 +328,6 @@ export class UsersService {
         },
       });
 
-      if (user && user.email === SUPER_ADMIN.email) {
-        throw new ForbiddenException(
-          'Không thể thay đổi thông tin của tài khoản này',
-        );
-      }
-
       const updatedUser = await this.prisma.user.update({
         where: {
           id,
@@ -343,6 +343,98 @@ export class UsersService {
           school: updateUserDto?.school || null,
           gender: updateUserDto?.gender as Gender,
           roleId: updateUserDto?.roleId,
+          job_title: updateUserDto?.job_title || null,
+        },
+      });
+      delete updatedUser.password;
+      delete updatedUser.refresh_token;
+      return updatedUser;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async updateAvatar(id: number, data: UploadAvatarUserDto, image: any) {
+    const { public_id } = data;
+    try {
+      if (!id) {
+        throw new BadRequestException('Id is required');
+      }
+      if (!public_id) {
+        throw new BadRequestException('Public_id is required');
+      }
+      const deleteImage = await this.cloudinaryService.deleteFile(public_id);
+
+      const avatar = await this.cloudinaryService.uploadFile(image);
+
+      const updatedUserAvatar = await this.prisma.user.update({
+        where: {
+          id,
+        },
+        data: {
+          avatar_url: avatar.secure_url,
+          public_id: avatar.public_id,
+        },
+      });
+      delete updatedUserAvatar.password;
+      delete updatedUserAvatar.refresh_token;
+      return updatedUserAvatar;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async getProfile(user: IUser) {
+    const { id } = user;
+    try {
+      if (!id) {
+        throw new BadRequestException('Id is required');
+      }
+
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id,
+        },
+        include: {
+          role: true,
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      delete user.password;
+      delete user.refresh_token;
+      return user;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async updateUserProfile(user: IUser, updateUserDto: UpdateUserDto) {
+    const { id } = user;
+    try {
+      if (!id) {
+        throw new BadRequestException('Id bắt buộc');
+      }
+
+      const updatedUser = await this.prisma.user.update({
+        where: {
+          id,
+        },
+        data: {
+          name: updateUserDto?.name,
+          phone_number: updateUserDto?.phone_number || null,
+          company: updateUserDto?.company || null,
+          date_of_birth: updateUserDto?.date_of_birth || null,
+          generation: updateUserDto?.generation || null,
+          major: updateUserDto?.major || null,
+          school: updateUserDto?.school || null,
+          gender: updateUserDto?.gender as Gender,
+          job_title: updateUserDto?.job_title || null,
         },
       });
       delete updatedUser.password;
