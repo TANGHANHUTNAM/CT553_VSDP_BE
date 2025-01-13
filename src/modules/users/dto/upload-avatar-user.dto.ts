@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 class FileDto {
   @IsString()
@@ -16,6 +16,7 @@ export class UploadAvatarUserDto {
   @Type(() => FileDto)
   file: FileDto;
 
+  @IsOptional()
   @IsString()
   public_id: string;
 }

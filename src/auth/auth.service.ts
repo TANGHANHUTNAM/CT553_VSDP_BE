@@ -11,13 +11,17 @@ import { IUser } from 'src/modules/users/interface/users.interface';
 import { UsersService } from 'src/modules/users/users.service';
 import { KEY_COOKIE } from 'src/shared/constant';
 import { IPayload } from './interface/payload.interface';
+import { LogService } from 'src/log/log.service';
 @Injectable()
 export class AuthService {
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
     private jwtService: JwtService,
-  ) {}
+    private logService: LogService,
+  ) {
+    this.logService.setContext(AuthService.name);
+  }
 
   async validateUserGoogle(email: string) {
     const user = await this.usersService.findOneByEmail(email);
@@ -49,6 +53,7 @@ export class AuthService {
   }
 
   async login(user: IUser, response: Response) {
+    this.logService.customLog();
     const payload: IPayload = {
       email: user.email,
       sub: 'access token',

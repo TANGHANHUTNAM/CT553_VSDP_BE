@@ -17,7 +17,10 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @ResMessage('Đăng nhập thành công!')
   @Post('login')
-  handleLogin(@ReqUser() user, @Res({ passthrough: true }) response: Response) {
+  handleLogin(
+    @ReqUser() user: IUser,
+    @Res({ passthrough: true }) response: Response,
+  ) {
     return this.authService.login(user, response);
   }
 

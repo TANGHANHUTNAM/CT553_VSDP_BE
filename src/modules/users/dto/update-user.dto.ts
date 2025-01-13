@@ -30,4 +30,10 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsString()
   @IsOptional()
   job_title: string;
+  @IsString()
+  @IsOptional()
+  start_date?: string;
+  @IsString()
+  @IsOptional()
+  end_date?: string;
 }

@@ -36,6 +36,12 @@ export const PERMISSION_DATA = [
     module: MODULES.USER,
   },
   {
+    name: 'Thêm danh sách người dùng',
+    api_path: VERSION + '/users/batch',
+    method: METHOD.POST,
+    module: MODULES.USER,
+  },
+  {
     name: 'Cập nhật thông tin người dùng',
     api_path: VERSION + '/users/:id',
     method: METHOD.PATCH,

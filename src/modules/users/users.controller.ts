@@ -23,6 +23,7 @@ import { multerOptions } from 'src/config/multer.config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ReqUser } from 'src/common/decorators/user.decorator';
 import { IUser } from './interface/users.interface';
+import { CreateListUserDto } from './dto/create-list-user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -32,6 +33,12 @@ export class UsersController {
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @ResMessage('Tạo danh sách người dùng thành công!')
+  @Post('/batch')
+  createBatch(@Body() createListUserDto: CreateListUserDto) {
+    return this.usersService.createBatch(createListUserDto);
   }
 
   @ResMessage('Lấy danh sách người dùng có phân trang thành công!')
@@ -86,5 +93,12 @@ export class UsersController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.usersService.remove(+id);
+  }
+
+  @Public()
+  @ResMessage('Cập nhật trạng thái hoạt động của tài khoản')
+  @Get('/list-active/status')
+  updateActiveStatus() {
+    return this.usersService.updateStatusAccountUsersInSystem();
   }
 }

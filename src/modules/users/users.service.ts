@@ -15,12 +15,18 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UploadAvatarUserDto } from './dto/upload-avatar-user.dto';
 import { IUser } from './interface/users.interface';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+import { CreateListUserDto } from './dto/create-list-user.dto';
+import { console } from 'inspector';
+import { LogService } from 'src/log/log.service';
+import dayjs from 'dayjs';
+import { isInDateRange } from 'src/shared/func';
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
+    private logService: LogService,
   ) {}
 
   getHashPassword(password: string) {
@@ -90,13 +96,59 @@ export class UsersService {
         },
       });
       delete newUser.password;
-
+      delete newUser.refresh_token;
       return newUser;
     } catch (error) {
       console.log(error);
       if (error.code === 'P2002') {
         throw new ConflictException('Người dùng đã tồn tại!');
       }
+      throw error;
+    }
+  }
+
+  async createBatch(createListUserDto: CreateListUserDto) {
+    const { users } = createListUserDto;
+    try {
+      const emailList = users.map((user) => user.email);
+
+      const duplicateEmailsInDb = await this.prisma.user.findMany({
+        where: {
+          email: {
+            in: emailList,
+          },
+        },
+        select: {
+          email: true,
+        },
+      });
+
+      const duplicateEmails = duplicateEmailsInDb.map((user) => user.email);
+
+      const duplicateDetails = users
+        .map((user, index) => ({
+          row: index + 1,
+          email: user.email,
+          isDuplicate: duplicateEmails.includes(user.email),
+        }))
+        .filter((item) => item.isDuplicate);
+
+      if (duplicateDetails.length > 0) {
+        throw new ConflictException(duplicateDetails);
+      }
+
+      const usersData = users.map((user) => ({
+        ...user,
+        password: this.getHashPassword('123456'),
+      }));
+
+      const newUsers = await this.prisma.user.createMany({
+        data: usersData,
+      });
+
+      return newUsers;
+    } catch (error) {
+      console.log(error);
       throw error;
     }
   }
@@ -322,11 +374,6 @@ export class UsersService {
       if (!id) {
         throw new BadRequestException('Id bắt buộc');
       }
-      const user = await this.prisma.user.findUnique({
-        where: {
-          id,
-        },
-      });
 
       const updatedUser = await this.prisma.user.update({
         where: {
@@ -344,6 +391,8 @@ export class UsersService {
           gender: updateUserDto?.gender as Gender,
           roleId: updateUserDto?.roleId,
           job_title: updateUserDto?.job_title || null,
+          start_date: updateUserDto?.start_date || null,
+          end_date: updateUserDto?.end_date || null,
         },
       });
       delete updatedUser.password;
@@ -361,10 +410,10 @@ export class UsersService {
       if (!id) {
         throw new BadRequestException('Id is required');
       }
-      if (!public_id) {
-        throw new BadRequestException('Public_id is required');
+
+      if (public_id) {
+        await this.cloudinaryService.deleteFile(public_id);
       }
-      const deleteImage = await this.cloudinaryService.deleteFile(public_id);
 
       const avatar = await this.cloudinaryService.uploadFile(image);
 
@@ -448,5 +497,34 @@ export class UsersService {
 
   remove(id: number) {
     return `This action removes a #${id} user`;
+  }
+
+  async updateStatusAccountUsersInSystem() {
+    try {
+      const dateNow = dayjs(new Date()).tz().format();
+      const usersDb = await this.prisma.user.findMany({});
+      const usersInactive = usersDb.filter((user) => {
+        const start = dayjs(user.start_date).tz().format();
+        const end = dayjs(user.end_date).tz().format();
+        const is_inRange = isInDateRange(dateNow, start, end);
+        return !is_inRange;
+      });
+      const usersInactiveIds = usersInactive.map((user) => user.id);
+      const usersUpdateStatus = await this.prisma.user.updateMany({
+        where: {
+          id: {
+            in: usersInactiveIds,
+          },
+        },
+        data: {
+          active: false,
+        },
+      });
+      this.logService.log('Update status account users in system');
+      return usersUpdateStatus;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 }

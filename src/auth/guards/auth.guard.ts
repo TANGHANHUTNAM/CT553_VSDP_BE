@@ -36,7 +36,7 @@ export class Authorization implements CanActivate {
 
     const { user } = context.switchToHttp().getRequest();
     if (!user && !user.id) {
-      throw new UnauthorizedException('Unauthorized');
+      throw new UnauthorizedException('Có lỗi, vui lòng đăng nhập lại!');
     }
 
     const request = context.switchToHttp().getRequest();
@@ -46,7 +46,7 @@ export class Authorization implements CanActivate {
     const userAuth = await this.userService.getAccountUserAuth(user.id);
 
     if (!userAuth) {
-      throw new UnauthorizedException('Unauthorized');
+      throw new UnauthorizedException(' Có lỗi, vui lòng đăng nhập lại!');
     }
 
     if (!userAuth.active) {

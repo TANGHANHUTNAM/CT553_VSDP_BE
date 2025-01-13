@@ -8,6 +8,7 @@ import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { PrismaService } from 'src/core/service/prisma.service';
 import { Permission } from '@prisma/client';
 import { PermssionQuery } from './dto/quer-pagination-permission.dto';
+import { PERMISSION_DATA } from 'src/database/data/permissions.data';
 
 @Injectable()
 export class PermissionsService {
@@ -86,6 +87,7 @@ export class PermissionsService {
       if (!roleId) {
         throw new BadRequestException('Id là bắt buộc!');
       }
+
       const permissions = await this.prisma.permission.findMany({
         where: {
           roles: {
@@ -189,6 +191,21 @@ export class PermissionsService {
       if (!id) {
         throw new BadRequestException('Quyền hạn không tồn tại!');
       }
+      const permissionExists = await this.prisma.permission.findUnique({
+        where: { id },
+      });
+
+      const existPermission = PERMISSION_DATA.find((item) => {
+        return (
+          permissionExists.api_path === item.api_path &&
+          permissionExists.method === item.method
+        );
+      });
+
+      if (existPermission) {
+        throw new ConflictException('Không thể xóa quyền hạn mặc định');
+      }
+
       const permission = await this.prisma.permission.delete({
         where: { id },
       });

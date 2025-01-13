@@ -14,6 +14,10 @@ import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TasksModule } from './tasks/tasks.module';
+import { LogModule } from './log/log.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -21,6 +25,7 @@ import { UsersModule } from './modules/users/users.module';
       isGlobal: true,
       envFilePath: ['.env'],
     }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         ttl: 60 * 1000,
@@ -35,6 +40,9 @@ import { UsersModule } from './modules/users/users.module';
     HealthModule,
     DatabaseModule,
     CloudinaryModule,
+    TasksModule,
+    LogModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [
@@ -47,10 +55,10 @@ import { UsersModule } from './modules/users/users.module';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-    {
-      provide: APP_GUARD,
-      useClass: Authorization,
-    },
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: Authorization,
+    // },
   ],
 })
 export class AppModule {}

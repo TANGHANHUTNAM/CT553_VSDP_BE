@@ -25,10 +25,10 @@ model User {
   active            Boolean   @default(true)
   is_external_guest Boolean   @default(false)
   refresh_token     String?
-  start_date       DateTime?
-  end_date         DateTime?
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  start_date       DateTime?  @db.Timestamp
+  end_date         DateTime? @db.Timestamp
+  created_at        DateTime  @default(now())  @db.Timestamp
+  updated_at        DateTime  @updatedAt  @db.Timestamp
   roleId            Int
   role              Role      @relation(fields: [roleId], references: [id])
 }

@@ -12,4 +12,12 @@ export class CreateUserDto {
   @IsInt()
   @IsNotEmpty()
   roleId: number;
+
+  @IsString()
+  @IsNotEmpty()
+  start_date: string;
+
+  @IsString()
+  @IsNotEmpty()
+  end_date: string;
 }
