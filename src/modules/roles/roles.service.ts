@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
-import { PrismaService } from 'src/core/service/prisma.service';
+import { PrismaService } from 'src/core/prisma.service';
 import { Role } from '@prisma/client';
 import { SUPER_ADMIN } from 'src/shared/constant';
 import { RoleQuery } from './dto/query-pagination-role.dto';

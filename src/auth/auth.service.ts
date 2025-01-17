@@ -53,7 +53,6 @@ export class AuthService {
   }
 
   async login(user: IUser, response: Response) {
-    this.logService.customLog();
     const payload: IPayload = {
       email: user.email,
       sub: 'access token',

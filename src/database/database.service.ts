@@ -5,7 +5,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from 'src/core/service/prisma.service';
+import { PrismaService } from 'src/core/prisma.service';
 import { PermissionsService } from 'src/modules/permissions/permissions.service';
 import { RolesService } from 'src/modules/roles/roles.service';
 import { UsersService } from 'src/modules/users/users.service';

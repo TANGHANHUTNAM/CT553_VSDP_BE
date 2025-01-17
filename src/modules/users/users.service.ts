@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Gender, User } from '@prisma/client';
 import { compareSync, genSaltSync, hashSync } from 'bcrypt';
-import { PrismaService } from 'src/core/service/prisma.service';
+import { PrismaService } from 'src/core/prisma.service';
 import { SUPER_ADMIN } from 'src/shared/constant';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserQuery } from './dto/query-pagination-user.dto';
@@ -19,14 +19,16 @@ import { CreateListUserDto } from './dto/create-list-user.dto';
 import { console } from 'inspector';
 import { LogService } from 'src/log/log.service';
 import dayjs from 'dayjs';
-import { isInDateRange } from 'src/shared/func';
+import { generateRandomPassword, isInDateRange } from 'src/shared/func';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
-    private readonly cloudinaryService: CloudinaryService,
+    private cloudinaryService: CloudinaryService,
     private logService: LogService,
+    private mailService: MailService,
   ) {}
 
   getHashPassword(password: string) {
@@ -87,16 +89,29 @@ export class UsersService {
         throw new ConflictException('Người dùng đã tồn tại!');
       }
 
-      const password = '123456';
+      const password = generateRandomPassword(6);
 
       const newUser = await this.prisma.user.create({
         data: {
           ...createUserDto,
           password: this.getHashPassword(password),
         },
+        include: {
+          role: true,
+        },
       });
       delete newUser.password;
       delete newUser.refresh_token;
+      if (newUser) {
+        this.mailService.sendMail([
+          {
+            userEmail: newUser.email,
+            userName: newUser.name,
+            userPassword: password,
+            userRole: newUser.role.name,
+          },
+        ]);
+      }
       return newUser;
     } catch (error) {
       console.log(error);
@@ -139,13 +154,34 @@ export class UsersService {
 
       const usersData = users.map((user) => ({
         ...user,
-        password: this.getHashPassword('123456'),
+        password: generateRandomPassword(6),
+      }));
+
+      const role = await this.prisma.role.findUnique({
+        where: {
+          id: usersData[0].roleId,
+        },
+      });
+
+      const usersDateHashPassword = usersData.map((user) => ({
+        ...user,
+        password: this.getHashPassword(user.password),
       }));
 
       const newUsers = await this.prisma.user.createMany({
-        data: usersData,
+        data: usersDateHashPassword,
       });
 
+      if (newUsers) {
+        this.mailService.sendMail(
+          usersData.map((user) => ({
+            userEmail: user.email,
+            userName: user.name,
+            userPassword: user.password,
+            userRole: role.name,
+          })),
+        );
+      }
       return newUsers;
     } catch (error) {
       console.log(error);
@@ -414,9 +450,7 @@ export class UsersService {
       if (public_id) {
         await this.cloudinaryService.deleteFile(public_id);
       }
-
       const avatar = await this.cloudinaryService.uploadFile(image);
-
       const updatedUserAvatar = await this.prisma.user.update({
         where: {
           id,

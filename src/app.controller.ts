@@ -1,39 +1,18 @@
-import {
-  Controller,
-  Get,
-  Post,
-  UploadedFile,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { CloudinaryService } from './cloudinary/cloudinary.service';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { multerOptions } from './config/multer.config';
-import { MailerService } from '@nestjs-modules/mailer';
 import { MailService } from './mail/mail.service';
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly cloudinaryService: CloudinaryService,
-    private maileService: MailService,
+    private mailSendService: MailService,
   ) {}
 
   @Get()
   getHello(): string {
     return this.appService.getHello();
-  }
-
-  @Get('/test')
-  async sendMail() {
-    try {
-      await this.maileService.sendUserConfirmation(
-        'namtanghanhut@gmail.com',
-        'token here>>>>>>>>>>>>>>>1231232132131',
-      );
-    } catch (error) {
-      throw error;
-    }
   }
 
   // @Post('upload')
