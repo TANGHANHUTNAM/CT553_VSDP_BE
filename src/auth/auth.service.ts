@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Global,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { UsersService } from 'src/modules/users/users.service';
 import { KEY_COOKIE } from 'src/shared/constant';
 import { IPayload } from './interface/payload.interface';
 import { LogService } from 'src/log/log.service';
+
 @Injectable()
 export class AuthService {
   constructor(

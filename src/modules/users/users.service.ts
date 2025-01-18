@@ -4,23 +4,42 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Gender, User } from '@prisma/client';
 import { compareSync, genSaltSync, hashSync } from 'bcrypt';
+import dayjs from 'dayjs';
+import { console } from 'inspector';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'src/core/prisma.service';
-import { SUPER_ADMIN } from 'src/shared/constant';
+import { LogService } from 'src/log/log.service';
+import { MailService } from 'src/mail/mail.service';
+import {
+  MAX_OPT_ATTEMPTS,
+  MAX_OPT_ATTEMPTS_TTL,
+  MAX_SEND_MAIL,
+  MAX_SEND_MAIL_TTL,
+  OTP_LENGTH,
+  OTP_TTL,
+  SUPER_ADMIN,
+} from 'src/shared/constant';
+import {
+  generateOTP,
+  generateRandomPassword,
+  isInDateRange,
+} from 'src/shared/func';
+import { CreateListUserDto } from './dto/create-list-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserQuery } from './dto/query-pagination-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UploadAvatarUserDto } from './dto/upload-avatar-user.dto';
 import { IUser } from './interface/users.interface';
-import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
-import { CreateListUserDto } from './dto/create-list-user.dto';
-import { console } from 'inspector';
-import { LogService } from 'src/log/log.service';
-import dayjs from 'dayjs';
-import { generateRandomPassword, isInDateRange } from 'src/shared/func';
-import { MailService } from 'src/mail/mail.service';
+import { Cache } from '@nestjs/cache-manager';
+import { JwtService } from '@nestjs/jwt';
+import { auth } from 'firebase-admin';
+import { AuthService } from 'src/auth/auth.service';
+import { ConfigService } from '@nestjs/config';
+import ms from 'ms';
 
 @Injectable()
 export class UsersService {
@@ -29,6 +48,9 @@ export class UsersService {
     private cloudinaryService: CloudinaryService,
     private logService: LogService,
     private mailService: MailService,
+    private cacheManager: Cache,
+    private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
 
   getHashPassword(password: string) {
@@ -556,6 +578,122 @@ export class UsersService {
       });
       this.logService.log('Update status account users in system');
       return usersUpdateStatus;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async sendMailOTP(email: string) {
+    try {
+      this.logService.debug(email);
+      if (!email) {
+        throw new BadRequestException('Email là bắt buộc!');
+      }
+      const user = await this.prisma.user.findUnique({
+        where: {
+          email,
+        },
+      });
+      if (!user) {
+        throw new BadRequestException('Thông tin không hợp lệ!');
+      }
+
+      const attemptsKey = `otp_send_attempts:${email}`;
+      const attempts = (await this.cacheManager.get(attemptsKey)) || 0;
+      if ((attempts as number) >= MAX_SEND_MAIL) {
+        throw new UnauthorizedException(
+          'Bạn đã vượt quá số lần gửi OTP. Vui lòng thử lại sau 1 giờ!',
+        );
+      }
+
+      const OTP = generateOTP();
+      await this.mailService.sendMailOtpChangePassword({
+        userEmail: email,
+        userOTP: OTP,
+      });
+      this.logService.debug(OTP);
+      await this.cacheManager.set(email, OTP, OTP_TTL);
+      await this.cacheManager.set(
+        attemptsKey,
+        (attempts as number) + 1,
+        MAX_SEND_MAIL_TTL,
+      );
+
+      return 300;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async verifyOTP(email: string, otp: string) {
+    try {
+      const cacheOTP = await this.cacheManager.get(email);
+      this.logService.debug(cacheOTP);
+
+      const attemptsKey = `otp_verify_attempts:${email}`;
+      const attempts = (await this.cacheManager.get(attemptsKey)) || 0;
+
+      if ((attempts as number) >= MAX_OPT_ATTEMPTS) {
+        throw new UnauthorizedException(
+          'Bạn đã vượt quá số lần nhập OTP. Vui lòng thử lại sau 1 phút!',
+        );
+      }
+
+      if (cacheOTP !== otp) {
+        await this.cacheManager.set(
+          attemptsKey,
+          (attempts as number) + 1,
+          MAX_OPT_ATTEMPTS_TTL,
+        );
+        throw new BadRequestException('Mã OTP không chính xác hoặc hết hạn!');
+      }
+
+      await this.cacheManager.del(email);
+      await this.cacheManager.del(attemptsKey);
+
+      // Tạo token tạm thời
+      const tempToken = this.generateTokenOTP(email);
+      await this.cacheManager.set(
+        `temp_token:${tempToken}`,
+        email,
+        ms(this.configService.get<string>('TOKEN_OTP_EXPIRED')),
+      );
+
+      return { email, temp_token: tempToken };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  generateTokenOTP(email: string) {
+    const tempToken = this.jwtService.sign(
+      { email },
+      {
+        secret: this.configService.get<string>('TOKEN_OTP_SECRET'),
+        expiresIn: this.configService.get<string>('TOKEN_OTP_EXPIRED'),
+      },
+    );
+    return tempToken;
+  }
+
+  async changePassword(email: string, newPassword: string, tempToken: string) {
+    try {
+      const cachedEmail = await this.cacheManager.get(
+        `temp_token:${tempToken}`,
+      );
+      if (!cachedEmail || cachedEmail !== email) {
+        throw new UnauthorizedException('Token không hợp lệ! Vui lòng thử lại');
+      }
+      const hashedPassword = this.getHashPassword(newPassword);
+      await this.prisma.user.update({
+        where: { email },
+        data: { password: hashedPassword },
+      });
+      await this.cacheManager.del(`temp_token:${tempToken}`);
+      return 'ok';
     } catch (error) {
       console.log(error);
       throw error;

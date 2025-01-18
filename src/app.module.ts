@@ -1,11 +1,14 @@
+import KeyvRedis from '@keyv/redis';
+import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager';
 import { Global, Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { CustomThrottlerGuard } from './auth/guards/custom-throttler.guard';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { PrismaModule } from './core/prisma.module';
@@ -16,16 +19,28 @@ import { MailModule } from './mail/mail.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
-
-import { TasksModule } from './tasks/tasks.module';
 import { RabbitmqModule } from './rabbitmq/rabbitmq.module';
-import { CustomThrottlerGuard } from './auth/guards/custom-throttler.guard';
+import { TasksModule } from './tasks/tasks.module';
+
 @Global()
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
+    }),
+    CacheModule.registerAsync({
+      imports: [ConfigModule],
+      isGlobal: true,
+      useFactory: async (configService: ConfigService) => ({
+        stores: [
+          new KeyvRedis(
+            `redis://${configService.get<string>('REDIS_HOST')}:${configService.get<number>('REDIS_PORT')}`,
+          ),
+        ],
+        ttl: configService.get<number>('REDIS_TTL'),
+      }),
+      inject: [ConfigService],
     }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
@@ -50,6 +65,10 @@ import { CustomThrottlerGuard } from './auth/guards/custom-throttler.guard';
   controllers: [AppController],
   providers: [
     AppService,
+    // {
+    //   provide: APP_INTERCEPTOR,
+    //   useClass: CacheInterceptor,
+    // },
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard,

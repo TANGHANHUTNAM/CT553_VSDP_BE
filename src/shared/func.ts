@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { OTP_LENGTH } from './constant';
 
 export function isInDateRange(
   date: string,
@@ -27,4 +28,14 @@ export function generateRandomCode(length: number): string {
     code += charset[randomIndex];
   }
   return code;
+}
+
+export function generateOTP(length: number = OTP_LENGTH): string {
+  const charset = '0123456789';
+  let otp = '';
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length);
+    otp += charset[randomIndex];
+  }
+  return otp;
 }

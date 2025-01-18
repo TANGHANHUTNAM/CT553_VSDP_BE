@@ -24,6 +24,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ReqUser } from 'src/common/decorators/user.decorator';
 import { IUser } from './interface/users.interface';
 import { CreateListUserDto } from './dto/create-list-user.dto';
+import { PayloadAuthOtpDto } from './dto/payload-auth-otp.dto';
+import { PayloadChangePasswordDto } from './dto/payload-change-password.dto';
 
 @Controller('users')
 export class UsersController {
@@ -100,5 +102,31 @@ export class UsersController {
   @Get('/list-active/status')
   updateActiveStatus() {
     return this.usersService.updateStatusAccountUsersInSystem();
+  }
+
+  @Public()
+  @ResMessage('Vui lòng kiểm tra email để lấy mã OTP')
+  @Post('/send-mail-otp')
+  sendMailOTP(@Body() data: { email: string }) {
+    console.log(data);
+    return this.usersService.sendMailOTP(data.email);
+  }
+
+  @Public()
+  @ResMessage('Xác thực mã OTP thành công! Vui lòng đổi mật khẩu')
+  @Post('/verify-otp')
+  verifyOTP(@Body() data: PayloadAuthOtpDto) {
+    return this.usersService.verifyOTP(data.email, data.otp);
+  }
+
+  @Public()
+  @ResMessage('Đổi mật khẩu thành cônng!')
+  @Post('/change-password')
+  changePassword(@Body() data: PayloadChangePasswordDto) {
+    return this.usersService.changePassword(
+      data.email,
+      data.new_password,
+      data.temp_token,
+    );
   }
 }

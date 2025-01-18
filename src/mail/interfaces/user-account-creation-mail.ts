@@ -4,3 +4,8 @@ export interface IUserSendMail {
   userPassword: string;
   userRole: string;
 }
+
+export interface IUserSendMailOtp {
+  userEmail: string;
+  userOTP: string;
+}
