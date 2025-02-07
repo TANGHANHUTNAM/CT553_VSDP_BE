@@ -25,7 +25,7 @@ export class DatabaseService implements OnModuleInit {
     private permissionService: PermissionsService,
   ) {}
   async onModuleInit() {
-    const isInit = this.configService.get<string>('IS_FAKE_DATA');
+    const isInit = this.configService.get<string>('IS_INIT_DATA');
     if (isInit === 'true') {
       logger.log('>>>>>>>>> INITIALIZING DATA <<<<<<<<<');
       const counterUser = await this.prismaService.user.count({});

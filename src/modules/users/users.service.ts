@@ -1,3 +1,4 @@
+import { Cache } from '@nestjs/cache-manager';
 import {
   BadRequestException,
   ConflictException,
@@ -6,10 +7,13 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { Gender, User } from '@prisma/client';
 import { compareSync, genSaltSync, hashSync } from 'bcrypt';
 import dayjs from 'dayjs';
 import { console } from 'inspector';
+import ms from 'ms';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'src/core/prisma.service';
 import { LogService } from 'src/log/log.service';
@@ -19,7 +23,6 @@ import {
   MAX_OPT_ATTEMPTS_TTL,
   MAX_SEND_MAIL,
   MAX_SEND_MAIL_TTL,
-  OTP_LENGTH,
   OTP_TTL,
   SUPER_ADMIN,
 } from 'src/shared/constant';
@@ -34,12 +37,6 @@ import { UserQuery } from './dto/query-pagination-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UploadAvatarUserDto } from './dto/upload-avatar-user.dto';
 import { IUser } from './interface/users.interface';
-import { Cache } from '@nestjs/cache-manager';
-import { JwtService } from '@nestjs/jwt';
-import { auth } from 'firebase-admin';
-import { AuthService } from 'src/auth/auth.service';
-import { ConfigService } from '@nestjs/config';
-import ms from 'ms';
 
 @Injectable()
 export class UsersService {
@@ -51,7 +48,9 @@ export class UsersService {
     private cacheManager: Cache,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) {}
+  ) {
+    this.logService.setContext(UsersService.name);
+  }
 
   getHashPassword(password: string) {
     const salt = genSaltSync(10);
@@ -565,7 +564,13 @@ export class UsersService {
         const is_inRange = isInDateRange(dateNow, start, end);
         return !is_inRange;
       });
-      const usersInactiveIds = usersInactive.map((user) => user.id);
+
+      const usersInactiveNotSuperAdmin = usersInactive.filter(
+        (user) => user.email !== SUPER_ADMIN.email,
+      );
+      const usersInactiveIds = usersInactiveNotSuperAdmin.map(
+        (user) => user.id,
+      );
       const usersUpdateStatus = await this.prisma.user.updateMany({
         where: {
           id: {
@@ -586,7 +591,6 @@ export class UsersService {
 
   async sendMailOTP(email: string) {
     try {
-      this.logService.debug(email);
       if (!email) {
         throw new BadRequestException('Email là bắt buộc!');
       }

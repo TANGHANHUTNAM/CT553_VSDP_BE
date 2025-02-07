@@ -27,8 +27,8 @@ model User {
   refresh_token     String?
   start_date       DateTime?  @db.Timestamp
   end_date         DateTime? @db.Timestamp
-  created_at        DateTime  @default(now())  @db.Timestamp
-  updated_at        DateTime  @updatedAt  @db.Timestamp
+  created_at        DateTime?  @default(now())  @db.Timestamp
+  updated_at        DateTime?  @updatedAt  @db.Timestamp
   roleId            Int
   role              Role      @relation(fields: [roleId], references: [id])
 }
@@ -71,3 +71,287 @@ enum Gender {
   FEMALE
   OTHER
 }
+
+enum ApplicantStatus {
+  DRAFT
+  SUBMITTED
+}
+model Applicant {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String
+  phone_number String
+  created_at DateTime? @default(now()) @db.Timestamp
+  updated_at DateTime? @updatedAt @db.Timestamp
+  form_responses FormResponses[]
+}
+
+enum LayoutForm {
+  VERITCAL
+  HORIZONTAL
+}
+
+enum Scope {
+  SCHOLARSHIP
+  SURVEY
+}
+
+model Form {
+  id        String @default(uuid()) @id
+  name       String
+  description String?
+  is_active Boolean? @default(false)
+  layout    LayoutForm? @default(VERITCAL)
+  scope    Scope?
+  creator_name String?
+  creator_id Int?
+  json_blocks String? @default("[]")
+  primary_color String?
+  background_color String?
+  start_date DateTime?
+  is_default Boolean? @default(false)
+  end_date DateTime?
+  created_at DateTime? @default(now()) @db.Timestamp
+  updated_at DateTime? @updatedAt @db.Timestamp
+  form_responses FormResponses[]
+} 
+
+
+model FormResponses {
+  id Int @id @default(autoincrement())
+  json_response String?
+  created_at DateTime? @default(now()) @db.Timestamp
+  applicant_id Int
+  applicant Applicant @relation(fields: [applicant_id], references: [id])
+  form_id String
+  form Form @relation(fields: [form_id], references: [id])
+}
+
+// model FormVersion {
+//   id          Int      @id @default(autoincrement())
+//   formId      String
+//   form        Form     @relation(fields: [formId], references: [id])
+//   version     Int?     @default(autoincrement())
+//   schema     Json[]
+//   changes    Json[]
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   applicant_submissions ApplicantSubmission[]
+// }
+
+
+// model ApplicantSubmission {
+//   id          Int      @id @default(autoincrement())
+//   formVersionId Int
+//   formVersion FormVersion @relation(fields: [formVersionId], references: [id])
+//   applicantId Int
+//   applicant Applicant @relation(fields: [applicantId], references: [id])
+//   data Json[]
+//   status    ApplicantStatus?
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+// }
+
+// model FormGroup {
+//   id          Int      @id @default(autoincrement())
+//   name        String
+//   description String?
+//   index      Int?    @default(autoincrement())
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   formId      String
+//   form Form @relation(fields: [formId], references: [id])
+//   formRows FormRow[]
+// }
+
+// model FormRow {
+//   id          Int      @id @default(autoincrement())
+//   formGroupId Int
+//   formGroup FormGroup @relation(fields: [formGroupId], references: [id])
+//   index      Int?    @default(autoincrement())
+//   layout    Json
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   formFields FormField[]
+// }
+
+// enum FieldType {
+//   TEXT
+//   TEXTAREA
+//   NUMBER
+//   EMAIL
+//   PHONE
+//   DATE
+//   RADIO
+//   CHECKBOX
+//   SELECT
+//   FILE
+// }
+
+
+// model FormField {
+//   id          Int      @id @default(autoincrement())
+//   name        String
+//   label String?
+//   index      Int?    @default(autoincrement())
+//   description String?
+//   is_required Boolean? @default(false)
+//   validation_rules Json[]
+//   options Json[]
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   formRowId Int
+//   formRow FormRow @relation(fields: [formRowId], references: [id])
+// }
+
+// model Applicant {
+//   id          Int      @id @default(autoincrement())
+//   name        String
+//   email       String
+//   phone_number String
+//   id_card_number String
+//   student_id  String
+//   date_of_birth DateTime?
+//   gender  Gender?
+//   major      String?
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   submission_forms SubmissionForm[]
+//   school School @relation(fields: [school_id], references: [id])
+//   school_id Int
+// }
+
+// model School {
+//   id          Int      @id @default(autoincrement())
+//   name        String
+//   code String?
+//   address    String?
+//   is_active Boolean @default(true)
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   applicants Applicant[]
+//   region_id Int
+//   region Region @relation(fields: [region_id], references: [id])
+// }
+
+// model Region {
+//   id          Int      @id @default(autoincrement())
+//   name        String
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   schools School[]
+// }
+
+
+// model Form {
+//   id          Int      @id @default(autoincrement())
+//   name        String
+//   description String?
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   form_versions    FormVersion[]
+// }
+
+// model FormVersion {
+//   id          Int      @id @default(autoincrement())
+//   formId      Int
+//   form        Form     @relation(fields: [formId], references: [id])
+//   version     Int?     @default(autoincrement())
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   form_groups FormGroup[]
+//   submission_forms SubmissionForm[]
+// }
+
+// model FormGroup {
+//   id          Int      @id @default(autoincrement())
+//   form_version_id Int
+//   form_version FormVersion @relation(fields: [form_version_id], references: [id])
+//   name        String
+//   description String?
+//   index      Int?    @default(autoincrement())
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   form_fields FormField[]
+// }
+
+// model FormField {
+//   id          Int      @id @default(autoincrement())
+//   form_group_id Int
+//   form_group FormGroup @relation(fields: [form_group_id], references: [id])
+//   name        String
+//   label String?
+//   index      Int?    @default(autoincrement())
+//   is_required Boolean? @default(false)
+//   is_optional Boolean? @default(false)
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   field_type_id Int
+//   field_type FieldType @relation(fields: [field_type_id], references: [id])
+//   validation_rules ValidationRule[]
+//   option_form_fields OptionFormField[]
+//   submission_form_fields SubmissionFormField[]
+// }
+
+// model FieldType {
+//   id          Int      @id @default(autoincrement())
+//   name        String
+//   description String?
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   form_fields FormField[]
+// }
+
+// model ValidationRule {
+//   id          Int      @id @default(autoincrement())
+//   rule        String
+//   value String?
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   form_field_id Int
+//   form_field FormField @relation(fields: [form_field_id], references: [id])
+// }
+
+// model Option {
+//   id          Int      @id @default(autoincrement())
+//   value String?
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   option_form_fields OptionFormField[]
+//   submission_form_fields SubmissionFormField[]
+// }
+
+// model OptionFormField {
+//   id          Int      @id @default(autoincrement())
+//   option_id Int
+//   option Option @relation(fields: [option_id], references: [id])
+//   form_field_id Int
+//   form_field FormField @relation(fields: [form_field_id], references: [id])
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+// }
+
+// model SubmissionForm  {
+//   id          Int      @id @default(autoincrement())
+//   form_version_id Int  
+//   form_version FormVersion @relation(fields: [form_version_id], references: [id])
+//   applicant_id Int
+//   applicant Applicant @relation(fields: [applicant_id], references: [id])
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+//   submission_form_fields SubmissionFormField[]
+// }
+
+// model SubmissionFormField {
+//   id          Int      @id @default(autoincrement())
+//   submission_form_id Int
+//   submission_form SubmissionForm @relation(fields: [submission_form_id], references: [id])
+//   form_field_id Int
+//   form_field FormField @relation(fields: [form_field_id], references: [id])
+//   option_id Int?
+//   option Option? @relation(fields: [option_id], references: [id])
+//   value       String
+//   created_at  DateTime? @default(now()) @db.Timestamp
+//   updated_at  DateTime? @updatedAt @db.Timestamp
+// }
+

@@ -21,6 +21,8 @@ import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
 import { RabbitmqModule } from './rabbitmq/rabbitmq.module';
 import { TasksModule } from './tasks/tasks.module';
+import { Authorization } from './auth/guards/auth.guard';
+import { FormsModule } from './modules/forms/forms.module';
 
 @Global()
 @Module({
@@ -61,6 +63,7 @@ import { TasksModule } from './tasks/tasks.module';
     LogModule,
     RabbitmqModule,
     MailModule,
+    FormsModule,
   ],
   controllers: [AppController],
   providers: [

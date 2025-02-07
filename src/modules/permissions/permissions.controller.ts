@@ -12,7 +12,7 @@ import { PermissionsService } from './permissions.service';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { ResMessage } from 'src/common/decorators/response.decorator';
-import { PermssionQuery } from './dto/quer-pagination-permission.dto';
+import { PermssionQuery } from './dto/query-pagination-permission.dto';
 
 @Controller('permissions')
 export class PermissionsController {
