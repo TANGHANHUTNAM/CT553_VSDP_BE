@@ -21,8 +21,6 @@ export class DatabaseService implements OnModuleInit {
     private readonly prismaService: PrismaService,
     private readonly configService: ConfigService,
     private userService: UsersService,
-    private roleService: RolesService,
-    private permissionService: PermissionsService,
   ) {}
   async onModuleInit() {
     const isInit = this.configService.get<string>('IS_INIT_DATA');

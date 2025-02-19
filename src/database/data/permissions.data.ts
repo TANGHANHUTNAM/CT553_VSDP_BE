@@ -5,6 +5,7 @@ export const MODULES = {
   USER: 'USER',
   ROLE: 'ROLE',
   PERMISSION: 'PERMISSION',
+  FORM: 'FORM',
 };
 
 export const METHOD = {
@@ -150,5 +151,30 @@ export const PERMISSION_DATA = [
     api_path: VERSION + '/permissions/role/:id',
     method: METHOD.GET,
     module: MODULES.PERMISSION,
+  },
+  // FORM
+  {
+    name: 'Lấy danh sách biểu mẫu có phân trang',
+    api_path: VERSION + '/forms',
+    method: METHOD.GET,
+    module: MODULES.FORM,
+  },
+  {
+    name: 'Lấy thông tin biểu mẫu',
+    api_path: VERSION + '/forms/:id',
+    method: METHOD.GET,
+    module: MODULES.FORM,
+  },
+  {
+    name: 'Tạo mới biểu mẫu',
+    api_path: VERSION + '/forms',
+    method: METHOD.POST,
+    module: MODULES.FORM,
+  },
+  {
+    name: 'Cập nhật thông tin biểu mẫu',
+    api_path: VERSION + '/forms/:id',
+    method: METHOD.PATCH,
+    module: MODULES.FORM,
   },
 ];
