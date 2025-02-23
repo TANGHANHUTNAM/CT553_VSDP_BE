@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Global, Injectable } from '@nestjs/common';
 import { UploadApiErrorResponse, UploadApiResponse, v2 } from 'cloudinary';
 import * as streamifier from 'streamifier';
 
+@Global()
 @Injectable()
 export class CloudinaryService {
   async uploadFile(

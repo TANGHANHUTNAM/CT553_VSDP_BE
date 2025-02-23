@@ -8,6 +8,8 @@ import {
   Delete,
   Query,
   Res,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { FormsService } from './forms.service';
 import { CreateFormDto } from './dto/create-form.dto';
@@ -15,6 +17,11 @@ import { UpdateFormDto } from './dto/update-form.dto';
 import { ResMessage } from 'src/common/decorators/response.decorator';
 import { QueryForm } from './dto/query-pagination-form.dto';
 import { UpdateStatusFormDto } from './dto/update-status-form.dto';
+import { Public } from 'src/common/decorators/public.decorator';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { multerOptions } from 'src/config/multer.config';
+import { UpdateFormUploadImage } from './dto/update-form-uploadImage';
+import { UpdateFormBuilderDto } from './dto/update-form-builder.dto';
 
 @Controller('forms')
 export class FormsController {
@@ -44,6 +51,14 @@ export class FormsController {
     return this.formsService.update(id, updateFormDto);
   }
 
+  @ResMessage('Lưu biểu mẫu thành công!')
+  @Patch(':id/builder/update')
+  updateFormBuilder(
+    @Param('id') id: string,
+    @Body() updateFormBuilderDto: UpdateFormBuilderDto,
+  ) {
+    return this.formsService.updateFormBuilder(id, updateFormBuilderDto);
+  }
   @ResMessage('Cập nhật trạng thái biểu mẫu thành công!')
   @Patch('/:id/status')
   updateStatus(
@@ -56,5 +71,17 @@ export class FormsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.formsService.remove(+id);
+  }
+
+  @ResMessage('Cập nhật style biểu mẫu thành công!')
+  @Public()
+  @UseInterceptors(FileInterceptor('image', multerOptions))
+  @Patch(':id/style/update')
+  updateStyleForm(
+    @Param('id') id: string,
+    @Body() data: UpdateFormUploadImage,
+    @UploadedFile() image: Express.Multer.File,
+  ) {
+    return this.formsService.updateStyleForm(id, data, image);
   }
 }

@@ -6,21 +6,41 @@ import { Form } from '@prisma/client';
 import { LogService } from 'src/log/log.service';
 import { QueryForm } from './dto/query-pagination-form.dto';
 import { UpdateStatusFormDto } from './dto/update-status-form.dto';
+import { UpdateFormUploadImage } from './dto/update-form-uploadImage';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+import { UpdateFormBuilderDto } from './dto/update-form-builder.dto';
 
 @Injectable()
 export class FormsService {
   constructor(
     private prisma: PrismaService,
     private logService: LogService,
+    private cloudinaryService: CloudinaryService,
   ) {
     this.logService.setContext(FormsService.name);
   }
   async create(createFormDto: CreateFormDto): Promise<Form> {
     try {
       const form = await this.prisma.form.create({
-        data: createFormDto,
+        data: {
+          ...createFormDto,
+          creator_id: +createFormDto.creator_id,
+        },
       });
-      return form;
+      const formSection = await this.prisma.formSections.create({
+        data: {
+          form_id: form.id,
+          name: 'Phần 1',
+          description: 'Phần 1',
+          section_versions: {
+            create: {
+              version: 1,
+            },
+          },
+        },
+      });
+      const newForm = { ...form, form_sections: [formSection] };
+      return newForm;
     } catch (error) {
       this.logService.error(error);
       throw error;
@@ -44,22 +64,19 @@ export class FormsService {
                 mode: 'insensitive',
               },
             },
-            {
-              description: {
-                contains: search,
-                mode: 'insensitive',
-              },
-            },
           ],
         }),
         ...(scope && { scope }),
-        ...(status && { is_active: status === 'active' ? true : false }),
+        ...(status && { is_public: status === 'active' ? true : false }),
       };
 
       const forms = await this.prisma.form.findMany({
         where: whereClause,
         skip,
         take,
+        orderBy: {
+          is_default: 'desc',
+        },
       });
 
       const totalRecords = await this.prisma.form.count({
@@ -100,27 +117,9 @@ export class FormsService {
       }
       const form = await this.prisma.form.update({
         where: { id },
-        data: updateFormDto,
-      });
-      return form;
-    } catch (error) {
-      this.logService.error(error);
-      throw error;
-    }
-  }
-
-  async updateStatus(
-    id: string,
-    UpdateStatusFormDto: UpdateStatusFormDto,
-  ): Promise<Form> {
-    try {
-      if (!id) {
-        throw new BadRequestException('Id is required');
-      }
-      const form = await this.prisma.form.update({
-        where: { id },
         data: {
-          is_active: UpdateStatusFormDto.status === 1 ? true : false,
+          ...updateFormDto,
+          creator_id: +updateFormDto.creator_id,
         },
       });
       return form;
@@ -130,7 +129,111 @@ export class FormsService {
     }
   }
 
+  async updateFormBuilder(
+    id: string,
+    updateFormBuilderDto: UpdateFormBuilderDto,
+  ) {
+    try {
+      if (!id) {
+        throw new BadRequestException('Id is required');
+      }
+      const savedForm = await this.prisma.form.update({
+        where: { id },
+        data: {
+          primary_color: updateFormBuilderDto.primary_color,
+          block_color: updateFormBuilderDto.block_color,
+          background_color: updateFormBuilderDto.background_color,
+        },
+      });
+      if (!savedForm) {
+        throw new BadRequestException('Form not found');
+      }
+      return savedForm;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async updateStatus(
+    id: string,
+    updateStatusFormDto: UpdateStatusFormDto,
+  ): Promise<Form> {
+    try {
+      if (!id) {
+        throw new BadRequestException('Id is required');
+      }
+      const form = await this.prisma.form.update({
+        where: { id },
+        data: {
+          is_default: updateStatusFormDto.is_default,
+        },
+      });
+      if (form.scope === 'SCHOLARSHIP') {
+        await this.prisma.form.updateMany({
+          where: {
+            id: {
+              not: id,
+            },
+            scope: 'SCHOLARSHIP',
+          },
+          data: {
+            is_default: false,
+          },
+        });
+      }
+      return form;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async publicForm(id: string) {
+    try {
+    } catch (error) {}
+  }
+
   remove(id: number) {
     return `This action removes a #${id} form`;
+  }
+
+  async updateStyleForm(id: string, data: UpdateFormUploadImage, image: any) {
+    const { public_id } = data;
+    try {
+      if (!id) {
+        throw new BadRequestException('Id is required');
+      }
+
+      if (public_id) {
+        await this.cloudinaryService.deleteFile(public_id);
+      }
+      if (image) {
+        const imageUpload = await this.cloudinaryService.uploadFile(image);
+        const updatedImageForm = await this.prisma.form.update({
+          where: { id },
+          data: {
+            image_url: imageUpload.secure_url,
+            public_id: imageUpload.public_id,
+            primary_color: data.primary_color,
+            block_color: data.block_color,
+            background_color: data.background_color,
+          },
+        });
+        return updatedImageForm;
+      }
+      const updatedForm = await this.prisma.form.update({
+        where: { id },
+        data: {
+          primary_color: data.primary_color,
+          block_color: data.block_color,
+          background_color: data.background_color,
+        },
+      });
+      return updatedForm;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
   }
 }

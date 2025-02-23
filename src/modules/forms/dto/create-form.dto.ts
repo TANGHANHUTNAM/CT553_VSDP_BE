@@ -1,5 +1,11 @@
 import { Scope } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+} from 'class-validator';
 
 export class CreateFormDto {
   @IsString()
@@ -18,4 +24,10 @@ export class CreateFormDto {
   @IsNotEmpty()
   @IsEnum(Scope, { message: 'scope must be a valid enum value' })
   scope: Scope;
+  @IsNumber()
+  @IsNotEmpty()
+  creator_id: number;
+  @IsString()
+  @IsNotEmpty()
+  creator_name: string;
 }

@@ -23,6 +23,8 @@ import { RabbitmqModule } from './rabbitmq/rabbitmq.module';
 import { TasksModule } from './tasks/tasks.module';
 import { Authorization } from './auth/guards/auth.guard';
 import { FormsModule } from './modules/forms/forms.module';
+import { SectionsFormModule } from './modules/sections-form/sections-form.module';
+import { SectionVersionsModule } from './modules/section-versions/section-versions.module';
 
 @Global()
 @Module({
@@ -64,6 +66,8 @@ import { FormsModule } from './modules/forms/forms.module';
     RabbitmqModule,
     MailModule,
     FormsModule,
+    SectionsFormModule,
+    SectionVersionsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -1,7 +1,7 @@
-import { IsNotEmpty, IsNumber } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber } from 'class-validator';
 
 export class UpdateStatusFormDto {
-  @IsNumber()
+  @IsBoolean()
   @IsNotEmpty()
-  status: number;
+  is_default: boolean;
 }
