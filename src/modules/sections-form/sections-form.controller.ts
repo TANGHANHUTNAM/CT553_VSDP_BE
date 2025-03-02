@@ -28,10 +28,11 @@ export class SectionsFormController {
   }
 
   @Get('/form/:id')
-  getSectionsLastVersionByFormId(@Param('id') id: string) {
-    return this.sectionsFormService.getSectionsLastVersionByFormId(id);
+  getSectionsByFormId(@Param('id') id: string) {
+    return this.sectionsFormService.getSectionsByFormId(id);
   }
 
+  @ResMessage('Cập nhật phần thành công!')
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -40,6 +41,7 @@ export class SectionsFormController {
     return this.sectionsFormService.update(+id, updateSectionsFormDto);
   }
 
+  @ResMessage('Xóa phần thành công!')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.sectionsFormService.remove(+id);

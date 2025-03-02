@@ -22,6 +22,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { multerOptions } from 'src/config/multer.config';
 import { UpdateFormUploadImage } from './dto/update-form-uploadImage';
 import { UpdateFormBuilderDto } from './dto/update-form-builder.dto';
+import { UpdateStatusPublicFormDto } from './dto/update-status-public-form.dto';
 
 @Controller('forms')
 export class FormsController {
@@ -37,6 +38,12 @@ export class FormsController {
   @Get()
   findAllWithPagination(@Query() query: QueryForm) {
     return this.formsService.findAllWithPagination(query);
+  }
+
+  @ResMessage('Lấy thông tin xem trước biểu mẫu!')
+  @Get('preview/:id')
+  previewForm(@Param('id') id: string) {
+    return this.formsService.previewForm(id);
   }
 
   @ResMessage('Lấy thông tin biểu mẫu!')
@@ -66,6 +73,15 @@ export class FormsController {
     @Body() updateStatusFormDto: UpdateStatusFormDto,
   ) {
     return this.formsService.updateStatus(id, updateStatusFormDto);
+  }
+
+  @ResMessage('Cập nhật trạng thái public biểu mẫu thành công!')
+  @Patch('/:id/status/public')
+  updateStatusPublic(
+    @Param('id') id: string,
+    @Body() updateStatusPublic: UpdateStatusPublicFormDto,
+  ) {
+    return this.formsService.updateStatusPublic(id, updateStatusPublic);
   }
 
   @Delete(':id')

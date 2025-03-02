@@ -17,72 +17,34 @@ export class SectionsFormService {
       const sectionCreatedForm = await this.prisma.formSections.create({
         data: {
           ...createSectionsFormDto,
-          section_versions: {
-            create: {
-              version: 1,
-            },
-          },
         },
       });
-      // const sectionsForms = await this.prisma.formSections.findMany({
-      //   where: {
-      //     form_id: createSectionsFormDto.form_id,
-      //   },
-      // });
-
-      // const sectionVersionsForm = await Promise.all(
-      //   sectionsForms.map(async (section) => {
-      //     const lastVersion = await this.prisma.sectionVersions.findFirst({
-      //       where: {
-      //         form_section_id: section.id,
-      //       },
-      //       orderBy: {
-      //         version: 'desc',
-      //       },
-      //     });
-      //     return {
-      //       section,
-      //       lastVersion,
-      //     };
-      //   }),
-      // );
-
-      return sectionCreatedForm;
+      const allSections = await this.prisma.formSections.findMany({
+        where: {
+          form_id: sectionCreatedForm.form_id,
+        },
+        orderBy: {
+          created_at: 'asc',
+        },
+      });
+      return allSections;
     } catch (error) {
       this.logService.error(error);
       throw error;
     }
   }
 
-  async getSectionsLastVersionByFormId(formId: string) {
+  async getSectionsByFormId(formId: string) {
     try {
       const sectionsForms = await this.prisma.formSections.findMany({
         where: {
           form_id: formId,
         },
         orderBy: {
-          created_at: 'asc',
+          id: 'asc',
         },
       });
-
-      const sectionLastVersionsForm = await Promise.all(
-        sectionsForms.map(async (section) => {
-          const section_versions = await this.prisma.sectionVersions.findFirst({
-            where: {
-              form_section_id: section.id,
-            },
-            orderBy: {
-              version: 'desc',
-            },
-          });
-          let form_sections = {
-            ...section,
-            section_versions,
-          };
-          return form_sections;
-        }),
-      );
-      return sectionLastVersionsForm;
+      return sectionsForms;
     } catch (error) {
       this.logService.error(error);
       throw error;
@@ -101,11 +63,53 @@ export class SectionsFormService {
     return `This action returns a #${id} sectionsForm`;
   }
 
-  update(id: number, updateSectionsFormDto: UpdateSectionsFormDto) {
-    return `This action updates a #${id} sectionsForm`;
+  async update(id: number, updateSectionsFormDto: UpdateSectionsFormDto) {
+    try {
+      if (!id) {
+        throw new Error('Id is required!');
+      }
+      const updatedSection = await this.prisma.formSections.update({
+        where: {
+          id,
+        },
+        data: {
+          ...updateSectionsFormDto,
+        },
+      });
+      const allSections = await this.prisma.formSections.findMany({
+        where: {
+          form_id: updatedSection.form_id,
+        },
+        orderBy: {
+          id: 'asc',
+        },
+      });
+      return allSections;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} sectionsForm`;
+  async remove(id: number) {
+    try {
+      const section = await this.prisma.formSections.delete({
+        where: {
+          id,
+        },
+      });
+      const allSections = await this.prisma.formSections.findMany({
+        where: {
+          form_id: section.form_id,
+        },
+        orderBy: {
+          id: 'asc',
+        },
+      });
+      return allSections;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
   }
 }

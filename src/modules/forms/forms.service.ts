@@ -9,6 +9,7 @@ import { UpdateStatusFormDto } from './dto/update-status-form.dto';
 import { UpdateFormUploadImage } from './dto/update-form-uploadImage';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { UpdateFormBuilderDto } from './dto/update-form-builder.dto';
+import { UpdateStatusPublicFormDto } from './dto/update-status-public-form.dto';
 
 @Injectable()
 export class FormsService {
@@ -30,13 +31,8 @@ export class FormsService {
       const formSection = await this.prisma.formSections.create({
         data: {
           form_id: form.id,
-          name: 'Phần 1',
-          description: 'Phần 1',
-          section_versions: {
-            create: {
-              version: 1,
-            },
-          },
+          name: 'section',
+          description: 'section',
         },
       });
       const newForm = { ...form, form_sections: [formSection] };
@@ -103,6 +99,13 @@ export class FormsService {
       }
       return this.prisma.form.findUnique({
         where: { id },
+        include: {
+          form_sections: {
+            orderBy: {
+              id: 'asc',
+            },
+          },
+        },
       });
     } catch (error) {
       this.logService.error(error);
@@ -189,9 +192,32 @@ export class FormsService {
     }
   }
 
-  async publicForm(id: string) {
+  async updateStatusPublic(
+    id: string,
+    updateStatusPublic: UpdateStatusPublicFormDto,
+  ) {
     try {
-    } catch (error) {}
+      if (!id) {
+        throw new BadRequestException('Id is required');
+      }
+      const form = await this.prisma.form.update({
+        where: { id },
+        data: {
+          is_public: updateStatusPublic.is_public,
+        },
+        include: {
+          form_sections: {
+            orderBy: {
+              id: 'asc',
+            },
+          },
+        },
+      });
+      return form;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
   }
 
   remove(id: number) {
@@ -231,6 +257,28 @@ export class FormsService {
         },
       });
       return updatedForm;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async previewForm(id: string) {
+    try {
+      if (!id) {
+        throw new BadRequestException('Id is required');
+      }
+      const form = await this.prisma.form.findUnique({
+        where: { id },
+        include: {
+          form_sections: {
+            orderBy: {
+              id: 'asc',
+            },
+          },
+        },
+      });
+      return form;
     } catch (error) {
       this.logService.error(error);
       throw error;

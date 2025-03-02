@@ -8,29 +8,31 @@ datasource db {
 }
 
 model User {
-  id                Int       @id @default(autoincrement())
-  name              String
-  email             String    @unique
-  password          String
-  date_of_birth     DateTime?
-  gender            Gender?
-  phone_number      String?
-  avatar_url        String?
-  public_id         String?
-  generation        String?
-  job_title         String?
-  school            String?
-  major             String?
-  company           String?
-  active            Boolean   @default(true)
-  is_external_guest Boolean   @default(false)
-  refresh_token     String?
-  start_date        DateTime? @db.Timestamp
-  end_date          DateTime? @db.Timestamp
-  created_at        DateTime? @default(now()) @db.Timestamp
-  updated_at        DateTime? @updatedAt @db.Timestamp
-  roleId            Int
-  role              Role      @relation(fields: [roleId], references: [id])
+  id                   Int                   @id @default(autoincrement())
+  name                 String
+  email                String                @unique
+  password             String
+  date_of_birth        DateTime?
+  gender               Gender?
+  phone_number         String?
+  avatar_url           String?
+  public_id            String?
+  generation           String?
+  job_title            String?
+  school               String?
+  major                String?
+  company              String?
+  active               Boolean               @default(true)
+  is_external_guest    Boolean               @default(false)
+  refresh_token        String?
+  start_date           DateTime?             @db.Timestamp
+  end_date             DateTime?             @db.Timestamp
+  created_at           DateTime?             @default(now()) @db.Timestamp
+  updated_at           DateTime?             @updatedAt @db.Timestamp
+  roleId               Int
+  role                 Role                  @relation(fields: [roleId], references: [id])
+  response_scores      ResponseScores[]
+  response_assignments ResponseAssignments[]
 }
 
 model Role {
@@ -72,73 +74,151 @@ enum Gender {
   OTHER
 }
 
-
-
 enum Scope {
   SCHOLARSHIP
   SURVEY
 }
 
 model Form {
-  id             String          @id @default(uuid())
-  name           String
-  description    String?
-  creator_name   String?
-  creator_id     Int?
-  is_public        Boolean? @default(false)
-  is_default     Boolean?        @default(false)
-  primary_color    String?  @default("#09BDD4")
-  block_color      String?  @default("#ffffff")
-  background_color String?  @default("#DAF5F9")
-  start_date     DateTime?
-  end_date       DateTime?
-  scope          Scope?
-  image_url      String?
-  public_id      String?
-  created_at     DateTime?       @default(now()) @db.Timestamp
-  updated_at     DateTime?       @updatedAt @db.Timestamp
-  form_responses FormResponses[]
-  form_sections  FormSections[]
+  id               String            @id @default(uuid())
+  name             String
+  description      String?
+  creator_name     String?
+  creator_id       Int?
+  is_public        Boolean?          @default(false)
+  is_default       Boolean?          @default(false)
+  primary_color    String?           @default("#09BDD4")
+  block_color      String?           @default("#ffffff")
+  background_color String?           @default("#DAF5F9")
+  start_date       DateTime?
+  end_date         DateTime?
+  scope            Scope?
+  image_url        String?
+  public_id        String?
+  created_at       DateTime?         @default(now()) @db.Timestamp
+  updated_at       DateTime?         @updatedAt @db.Timestamp
+  form_responses   FormResponses[]
+  form_sections    FormSections[]
+  scoring_sections ScoringSections[]
 }
 
 model FormSections {
   id          Int      @id @default(autoincrement())
-  name       String   
+  name        String
   description String?
+  json_blocks Json[]   @default([])
   created_at  DateTime @default(now()) @db.Timestamp
   updated_at  DateTime @updatedAt @db.Timestamp
   form_id     String
   form        Form     @relation(fields: [form_id], references: [id])
-  section_versions SectionVersions[]
-}
-
-
-model SectionVersions {
-  id               Int      @id @default(autoincrement())
-  version          Int  
-  json_blocks      Json[]   @default([])
-  created_at       DateTime @default(now()) @db.Timestamp
-  form_section_id  Int
-  form_section     FormSections @relation(fields: [form_section_id], references: [id], onDelete: Cascade)
 }
 
 model FormResponses {
-  id           Int       @id @default(autoincrement())
-  name         String
-  email        String   
-  phone_number String
-  responses    Json[]    @default([])
-  section_versions Json[] @default([])
-  created_at   DateTime? @default(now()) @db.Timestamp
-  form_id      String
-  form         Form      @relation(fields: [form_id], references: [id])
-  status      ApplicantStatus? @default(SUBMITTED)
-   @@unique([email, form_id])
+  id                   Int                   @id @default(autoincrement())
+  name                 String
+  email                String
+  phone_number         String
+  responses            Json[]                @default([])
+  section_versions     Json[]                @default([])
+  created_at           DateTime?             @default(now()) @db.Timestamp
+  form_id              String
+  form                 Form                  @relation(fields: [form_id], references: [id])
+  status               ApplicantStatus?      @default(SUBMITTED)
+  university_id        Int?                  @default(dbgenerated("NULL"))
+  university           Universities?         @relation(fields: [university_id], references: [id])
+  response_scores      ResponseScores[]
+  response_assignments ResponseAssignments[]
+  final_scores         Json[]                @default([])
+  total_final_score    Int?
+  @@index([form_id])
+  @@index([status])
+  @@index([total_final_score])
+  @@index([responses], type: Gin)
+}
+
+model Universities {
+  id             Int             @id @default(autoincrement())
+  name           String          @unique
+  is_active      Boolean         @default(true)
+  created_at     DateTime        @default(now()) @db.Timestamp
+  updated_at     DateTime        @updatedAt @db.Timestamp
+  form_responses FormResponses[]
+  region_id      Int
+  region         Regions         @relation(fields: [region_id], references: [id])
+}
+
+model Regions {
+  id           Int            @id @default(autoincrement())
+  name         String         @unique
+  created_at   DateTime       @default(now()) @db.Timestamp
+  updated_at   DateTime       @updatedAt @db.Timestamp
+  universities Universities[]
+}
+
+model ScoringSections {
+  id                   Int                   @id @default(autoincrement())
+  name                 String
+  description          String?
+  max_score            Int
+  created_at           DateTime              @default(now()) @db.Timestamp
+  updated_at           DateTime              @updatedAt @db.Timestamp
+  form_id              String
+  form                 Form                  @relation(fields: [form_id], references: [id])
+  scoring_criteria     ScoringCriterias[]
+  response_assignments ResponseAssignments[]
+}
+
+model ScoringCriterias {
+  id                 Int              @id @default(autoincrement())
+  name               String
+  description        String?
+  max_score          Int
+  min_score          Int
+  created_at         DateTime         @default(now()) @db.Timestamp
+  updated_at         DateTime         @updatedAt @db.Timestamp
+  scoring_section_id Int
+  scoring_section    ScoringSections  @relation(fields: [scoring_section_id], references: [id])
+  response_scores    ResponseScores[]
+}
+
+model ResponseScores {
+  id                  Int              @id @default(autoincrement())
+  score_value         Int
+  comment             String?
+  created_at          DateTime         @default(now()) @db.Timestamp
+  updated_at          DateTime         @updatedAt @db.Timestamp
+  form_response_id    Int
+  form_response       FormResponses    @relation(fields: [form_response_id], references: [id])
+  scoring_criteria_id Int
+  scoring_criteria    ScoringCriterias @relation(fields: [scoring_criteria_id], references: [id])
+  user_id             Int
+  user                User             @relation(fields: [user_id], references: [id])
+  finalized_by        Int?
+  finalized_at        DateTime?
+  @@index([form_response_id, scoring_criteria_id, user_id])
+}
+
+model ResponseAssignments {
+  id                 Int             @id @default(autoincrement())
+  is_completed       Boolean         @default(false)
+  form_response_id   Int
+  form_response      FormResponses   @relation(fields: [form_response_id], references: [id])
+  user_id            Int
+  user               User            @relation(fields: [user_id], references: [id])
+  scoring_section_id Int
+  scoring_section    ScoringSections @relation(fields: [scoring_section_id], references: [id])
+  created_at         DateTime        @default(now()) @db.Timestamp
+  updated_at         DateTime        @updatedAt @db.Timestamp
+
+  @@index([form_response_id, user_id, scoring_section_id])
 }
 
 enum ApplicantStatus {
-  SUBMITTED
-  APPROVED
-  REJECTED
-  COMPLETED
+  SUBMITTED // Đã nộp
+  CHECKED // Đã kiểm tra
+  REJECTED // Bị từ chối
+  ASSIGNED // Đã giao
+  REVIEWING // Đang chấm điểm
+  FAILED // Rớt
+  PASSED  // Đậu
 }
