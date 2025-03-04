@@ -11,6 +11,9 @@ import { SectionsFormService } from './sections-form.service';
 import { CreateSectionsFormDto } from './dto/create-sections-form.dto';
 import { UpdateSectionsFormDto } from './dto/update-sections-form.dto';
 import { ResMessage } from 'src/common/decorators/response.decorator';
+import { SubmitFormDto } from './dto/submit-form.dto';
+import { LogService } from 'src/log/log.service';
+import { Public } from 'src/common/decorators/public.decorator';
 
 @Controller('sections-form')
 export class SectionsFormController {
@@ -46,4 +49,11 @@ export class SectionsFormController {
   remove(@Param('id') id: string) {
     return this.sectionsFormService.remove(+id);
   }
+
+  // @Public()
+  // @ResMessage('Nộp biểu mẫu thành công!')
+  // @Post('submit/form')
+  // submitForm(@Body() data: SubmitFormDto) {
+  //   return this.sectionsFormService.submitForm(data);
+  // }
 }

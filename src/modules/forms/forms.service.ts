@@ -92,12 +92,12 @@ export class FormsService {
     }
   }
 
-  findOne(id: string) {
+  async findOne(id: string) {
     try {
       if (!id) {
         throw new BadRequestException('Id is required');
       }
-      return this.prisma.form.findUnique({
+      const forms = await this.prisma.form.findUnique({
         where: { id },
         include: {
           form_sections: {
@@ -107,6 +107,14 @@ export class FormsService {
           },
         },
       });
+      if (!forms) {
+        throw new BadRequestException('Form not found');
+      }
+      const universities = await this.prisma.universities.findMany({});
+      return {
+        ...forms,
+        universities,
+      };
     } catch (error) {
       this.logService.error(error);
       throw error;
@@ -278,7 +286,56 @@ export class FormsService {
           },
         },
       });
+      if (form?.scope === 'SCHOLARSHIP') {
+        const universities = await this.prisma.universities.findMany({
+          where: {
+            is_active: true,
+          },
+        });
+        return {
+          ...form,
+          universities,
+        };
+      }
       return form;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async getPublicFormScholarship() {
+    try {
+      const forms = await this.prisma.form.findMany({
+        where: {
+          scope: 'SCHOLARSHIP',
+          is_public: true,
+          is_default: true,
+        },
+        include: {
+          form_sections: {
+            orderBy: {
+              id: 'asc',
+            },
+          },
+        },
+      });
+      if (forms.length === 0) {
+        return null;
+      }
+
+      if (forms[0].scope === 'SCHOLARSHIP') {
+        const universities = await this.prisma.universities.findMany({
+          where: {
+            is_active: true,
+          },
+        });
+        return {
+          ...forms[0],
+          universities,
+        };
+      }
+      return forms[0];
     } catch (error) {
       this.logService.error(error);
       throw error;

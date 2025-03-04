@@ -177,4 +177,29 @@ export const PERMISSION_DATA = [
     method: METHOD.PATCH,
     module: MODULES.FORM,
   },
+  // UNIVERSITY
+  {
+    name: 'Lấy danh sách trường học có phân trang',
+    api_path: VERSION + '/universities',
+    method: METHOD.GET,
+    module: 'UNIVERSITY',
+  },
+  {
+    name: 'Lấy tất cả trường học',
+    api_path: VERSION + '/universities/all',
+    method: METHOD.GET,
+    module: 'UNIVERSITY',
+  },
+  {
+    name: 'Tạo mới trường học',
+    api_path: VERSION + '/universities',
+    method: METHOD.POST,
+    module: 'UNIVERSITY',
+  },
+  {
+    name: 'Cập nhật thông tin trường học',
+    api_path: VERSION + '/universities/:id',
+    method: METHOD.PATCH,
+    module: 'UNIVERSITY',
+  },
 ];

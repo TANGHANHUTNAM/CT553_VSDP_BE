@@ -7,9 +7,9 @@ export class QueryParams {
 
   @IsInt()
   @Type(() => Number)
-  current: number;
+  current?: number;
 
   @IsInt()
   @Type(() => Number)
-  pageSize: number;
+  pageSize?: number;
 }

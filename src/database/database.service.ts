@@ -12,6 +12,7 @@ import { UsersService } from 'src/modules/users/users.service';
 import { PERMISSION_DATA } from './data/permissions.data';
 import { ROLE, ROLE_DATA } from './data/roles.data';
 import { SUPER_ADMIN } from 'src/shared/constant';
+import { SCHOOL } from './data/school.data';
 
 const logger = new ConsoleLogger();
 
@@ -22,6 +23,26 @@ export class DatabaseService implements OnModuleInit {
     private readonly configService: ConfigService,
     private userService: UsersService,
   ) {}
+  async createRolePermissionsInBatches(
+    roleId: number,
+    permissions: { id: number }[],
+    batchSize: number = 10,
+  ) {
+    for (let i = 0; i < permissions.length; i += batchSize) {
+      const batch = permissions.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map((permission) =>
+          this.prismaService.rolePermission.create({
+            data: {
+              roleId: +roleId,
+              permissionId: +permission.id,
+            },
+          }),
+        ),
+      );
+    }
+  }
+
   async onModuleInit() {
     const isInit = this.configService.get<string>('IS_INIT_DATA');
     if (isInit === 'true') {
@@ -29,6 +50,13 @@ export class DatabaseService implements OnModuleInit {
       const counterUser = await this.prismaService.user.count({});
       const counterRole = await this.prismaService.role.count({});
       const counterPermission = await this.prismaService.permission.count({});
+      const counterSchool = await this.prismaService.universities.count({});
+      if (counterSchool === 0) {
+        await this.prismaService.universities.createMany({
+          data: SCHOOL,
+        });
+      }
+
       if (counterRole === 0) {
         await this.prismaService.role.createMany({ data: ROLE_DATA });
       }
@@ -51,17 +79,7 @@ export class DatabaseService implements OnModuleInit {
 
         if (adminRole.permissions.length === 0) {
           const permissions = await this.prismaService.permission.findMany();
-          console.log('Permissions:', permissions);
-          await Promise.all(
-            permissions.map((permission) =>
-              this.prismaService.rolePermission.create({
-                data: {
-                  roleId: adminRole.id,
-                  permissionId: permission.id,
-                },
-              }),
-            ),
-          );
+          await this.createRolePermissionsInBatches(adminRole.id, permissions);
         }
         await this.prismaService.user.create({
           data: {
@@ -73,7 +91,12 @@ export class DatabaseService implements OnModuleInit {
         });
       }
 
-      if (counterUser > 0 && counterRole > 0 && counterPermission > 0) {
+      if (
+        counterUser > 0 &&
+        counterRole > 0 &&
+        counterPermission > 0 &&
+        counterSchool > 0
+      ) {
         logger.log('>>>>>>>>> DATA INITIALIZED <<<<<<<<<');
       }
     }

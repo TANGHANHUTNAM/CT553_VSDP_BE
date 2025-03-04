@@ -86,13 +86,13 @@ model Form {
   creator_name     String?
   creator_id       Int?
   is_public        Boolean?          @default(false)
-  is_default       Boolean?          @default(false)
+  is_default       Boolean?          @default(false) 
   primary_color    String?           @default("#09BDD4")
   block_color      String?           @default("#ffffff")
   background_color String?           @default("#DAF5F9")
   start_date       DateTime?
   end_date         DateTime?
-  scope            Scope?
+  scope            Scope? 
   image_url        String?
   public_id        String?
   created_at       DateTime?         @default(now()) @db.Timestamp
@@ -118,8 +118,6 @@ model FormResponses {
   name                 String
   email                String
   phone_number         String
-  responses            Json[]                @default([])
-  section_versions     Json[]                @default([])
   created_at           DateTime?             @default(now()) @db.Timestamp
   form_id              String
   form                 Form                  @relation(fields: [form_id], references: [id])
@@ -130,10 +128,30 @@ model FormResponses {
   response_assignments ResponseAssignments[]
   final_scores         Json[]                @default([])
   total_final_score    Int?
+  field_value_responses FieldValueResponses[]
+
+  @@index([name])
+  @@index([email])
+  @@index([phone_number])
   @@index([form_id])
   @@index([status])
   @@index([total_final_score])
-  @@index([responses], type: Gin)
+
+}
+
+model FieldValueResponses {
+  id              Int           @id @default(autoincrement())
+  form_response_id Int
+  field_id        String
+  value_string    String?       // Cho chuỗi: InputText, SelectOption, DatePicker, etc.
+  value_number    Float?        // Cho số: InputNumber
+  value_array     String[]     // Cho mảng: CheckBox, RangePicker
+  value_json      Json?    
+  form_response   FormResponses @relation(fields: [form_response_id], references: [id])
+
+  @@index([form_response_id])
+  @@index([field_id])
+  @@index([value_number])
 }
 
 model Universities {
@@ -143,16 +161,6 @@ model Universities {
   created_at     DateTime        @default(now()) @db.Timestamp
   updated_at     DateTime        @updatedAt @db.Timestamp
   form_responses FormResponses[]
-  region_id      Int
-  region         Regions         @relation(fields: [region_id], references: [id])
-}
-
-model Regions {
-  id           Int            @id @default(autoincrement())
-  name         String         @unique
-  created_at   DateTime       @default(now()) @db.Timestamp
-  updated_at   DateTime       @updatedAt @db.Timestamp
-  universities Universities[]
 }
 
 model ScoringSections {
@@ -195,6 +203,7 @@ model ResponseScores {
   user                User             @relation(fields: [user_id], references: [id])
   finalized_by        Int?
   finalized_at        DateTime?
+
   @@index([form_response_id, scoring_criteria_id, user_id])
 }
 
@@ -220,5 +229,5 @@ enum ApplicantStatus {
   ASSIGNED // Đã giao
   REVIEWING // Đang chấm điểm
   FAILED // Rớt
-  PASSED  // Đậu
+  PASSED // Đậu
 }

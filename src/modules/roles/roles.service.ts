@@ -141,74 +141,68 @@ export class RolesService {
   }
 
   async updateRolePermission(id: number, body: updateRolePermissionsDto) {
-    const { permissions } = body;
+    const { permissions: newPermissionIds } = body;
+
     try {
       if (!id) {
         throw new BadRequestException('Id là bắt buộc');
       }
 
-      const roleAdmin = await this.prisma.role.findUnique({
-        where: {
-          id,
-        },
-      });
-
-      if (roleAdmin.name === SUPER_ADMIN.name) {
-        throw new ForbiddenException(
-          'Không thể cập nhật quyền hạn của vai trò quản trị hệ thống',
-        );
-      }
-
       const validPermissions = await this.prisma.permission.findMany({
         where: {
-          id: {
-            in: permissions,
-          },
+          id: { in: newPermissionIds },
         },
-        select: {
-          id: true,
-        },
+        select: { id: true },
       });
 
       const validPermissionIds = validPermissions.map((p) => p.id);
-      const invalidPermissionIds = permissions.filter(
+      const invalidPermissionIds = newPermissionIds.filter(
         (id) => !validPermissionIds.includes(id),
       );
+
       if (invalidPermissionIds.length > 0) {
         throw new BadRequestException(
           `Các permissionId không tồn tại: ${invalidPermissionIds.join(', ')}`,
         );
       }
 
-      await this.prisma.rolePermission.deleteMany({
-        where: {
-          roleId: id,
-          permissionId: {
-            notIn: validPermissionIds,
-          },
-        },
-      });
-
-      const upsertPromises = validPermissionIds.map((permissionId) => {
-        return this.prisma.rolePermission.upsert({
-          where: {
-            roleId_permissionId: {
-              roleId: id,
-              permissionId: permissionId,
-            },
-          },
-          create: {
-            roleId: id,
-            permissionId: permissionId,
-          },
-          update: {},
+      return await this.prisma.$transaction(async (tx) => {
+        const currentPermissions = await tx.rolePermission.findMany({
+          where: { roleId: id },
+          select: { permissionId: true },
         });
-      });
+        const currentPermissionIds = currentPermissions.map(
+          (p) => p.permissionId,
+        );
 
-      await Promise.all(upsertPromises);
-      return {
-        permissions: validPermissionIds,
-      };
+        const permissionsToAdd = validPermissionIds.filter(
+          (pid) => !currentPermissionIds.includes(pid),
+        );
+        const permissionsToRemove = currentPermissionIds.filter(
+          (pid) => !validPermissionIds.includes(pid),
+        );
+
+        if (permissionsToRemove.length > 0) {
+          await tx.rolePermission.deleteMany({
+            where: {
+              roleId: id,
+              permissionId: { in: permissionsToRemove },
+            },
+          });
+        }
+
+        if (permissionsToAdd.length > 0) {
+          await tx.rolePermission.createMany({
+            data: permissionsToAdd.map((permissionId) => ({
+              roleId: id,
+              permissionId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        return { permissions: validPermissionIds };
+      });
     } catch (error) {
       console.log(error);
       throw error;

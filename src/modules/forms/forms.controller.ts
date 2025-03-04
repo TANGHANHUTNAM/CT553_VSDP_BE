@@ -90,7 +90,6 @@ export class FormsController {
   }
 
   @ResMessage('Cập nhật style biểu mẫu thành công!')
-  @Public()
   @UseInterceptors(FileInterceptor('image', multerOptions))
   @Patch(':id/style/update')
   updateStyleForm(
@@ -99,5 +98,12 @@ export class FormsController {
     @UploadedFile() image: Express.Multer.File,
   ) {
     return this.formsService.updateStyleForm(id, data, image);
+  }
+
+  @Public()
+  @ResMessage('Lấy biểu mẫu học bổng')
+  @Get('public/scholarship')
+  getPublicFormScholarship() {
+    return this.formsService.getPublicFormScholarship();
   }
 }

@@ -24,6 +24,8 @@ import { TasksModule } from './tasks/tasks.module';
 import { Authorization } from './auth/guards/auth.guard';
 import { FormsModule } from './modules/forms/forms.module';
 import { SectionsFormModule } from './modules/sections-form/sections-form.module';
+import { UniversityModule } from './modules/university/university.module';
+import { FormResponsesModule } from './modules/form-responses/form-responses.module';
 
 @Global()
 @Module({
@@ -66,6 +68,8 @@ import { SectionsFormModule } from './modules/sections-form/sections-form.module
     MailModule,
     FormsModule,
     SectionsFormModule,
+    UniversityModule,
+    FormResponsesModule,
   ],
   controllers: [AppController],
   providers: [
