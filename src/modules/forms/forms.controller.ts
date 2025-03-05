@@ -100,6 +100,12 @@ export class FormsController {
     return this.formsService.updateStyleForm(id, data, image);
   }
 
+  @ResMessage('Sao chép biểu mẫu thành công!')
+  @Post(':id/copy')
+  copyForm(@Param('id') id: string) {
+    return this.formsService.copyForm(id);
+  }
+
   @Public()
   @ResMessage('Lấy biểu mẫu học bổng')
   @Get('public/scholarship')

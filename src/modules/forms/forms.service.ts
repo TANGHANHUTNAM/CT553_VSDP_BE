@@ -341,4 +341,53 @@ export class FormsService {
       throw error;
     }
   }
+
+  async copyForm(id: string) {
+    try {
+      if (!id) {
+        throw new BadRequestException('Id is required');
+      }
+      const form = await this.prisma.form.findUnique({
+        where: { id },
+        include: {
+          form_sections: {
+            orderBy: {
+              id: 'asc',
+            },
+          },
+        },
+      });
+      if (!form) {
+        throw new BadRequestException('Form not found');
+      }
+      const {
+        id: formId,
+        created_at,
+        updated_at,
+        form_sections,
+        ...formData
+      } = form;
+      const formSections = form.form_sections.map((section) => {
+        const { id, form_id, created_at, updated_at, ...rest } = section;
+        return rest;
+      });
+      const newForm = await this.prisma.form.create({
+        data: {
+          ...formData,
+          is_default: false,
+          is_public: false,
+          name: `${form.name} - Copy`,
+          form_sections: {
+            createMany: {
+              data: formSections,
+            },
+          },
+        },
+      });
+      return newForm;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
 }

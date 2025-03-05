@@ -1,19 +1,16 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
 } from '@nestjs/common';
-import { SectionsFormService } from './sections-form.service';
+import { ResMessage } from 'src/common/decorators/response.decorator';
 import { CreateSectionsFormDto } from './dto/create-sections-form.dto';
 import { UpdateSectionsFormDto } from './dto/update-sections-form.dto';
-import { ResMessage } from 'src/common/decorators/response.decorator';
-import { SubmitFormDto } from './dto/submit-form.dto';
-import { LogService } from 'src/log/log.service';
-import { Public } from 'src/common/decorators/public.decorator';
+import { SectionsFormService } from './sections-form.service';
 
 @Controller('sections-form')
 export class SectionsFormController {

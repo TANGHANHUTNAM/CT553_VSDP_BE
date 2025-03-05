@@ -1,22 +1,20 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateFormResponseDto } from './dto/create-form-response.dto';
-import { UpdateFormResponseDto } from './dto/update-form-response.dto';
-import { QueryPaginationFormResponseDto } from './dto/query-pagination-form-response.dto';
-import { PrismaService } from 'src/core/prisma.service';
-import { LogService } from 'src/log/log.service';
-import { SectionsFormService } from '../sections-form/sections-form.service';
 import {
   FormBlockInstance,
   FormBlockType,
 } from 'src/auth/interface/block.interfacet';
+import { PrismaService } from 'src/core/prisma.service';
+import { LogService } from 'src/log/log.service';
 import { SubmitFormDto } from '../sections-form/dto/submit-form.dto';
+import { CreateFormResponseDto } from './dto/create-form-response.dto';
+import { QueryPaginationFormResponseDto } from './dto/query-pagination-form-response.dto';
+import { UpdateFormResponseDto } from './dto/update-form-response.dto';
 
 @Injectable()
 export class FormResponsesService {
   constructor(
     private prismaService: PrismaService,
     private logService: LogService,
-    private sectionsFormService: SectionsFormService,
   ) {
     this.logService.setContext(FormResponsesService.name);
   }
@@ -70,7 +68,7 @@ export class FormResponsesService {
       sortOrder,
       universityId,
     } = data;
-    console.log(data);
+
     try {
       const currentPage = current || 1;
       const itemsPerPage = pageSize || 10;
@@ -93,32 +91,40 @@ export class FormResponsesService {
         ],
       };
 
-      let FieldValueResponseWhere: any = {};
-      if (filters && Object.keys(filters).length > 0) {
-        FieldValueResponseWhere.OR = Object.entries(filters).map(
-          async ([block_id, values]) => {
-            const blockType = this.extractBlockTypes(
-              (
-                await this.prismaService.formSections.findMany({
-                  where: { form_id: formId },
-                  select: { json_blocks: true },
-                })
-              ).flatMap((s) => s.json_blocks as FormBlockInstance[]),
-            )[block_id];
+      const formSections = await this.prismaService.formSections.findMany({
+        where: { form_id: formId },
+        select: { json_blocks: true },
+      });
+      const allJsonBlocks: FormBlockInstance[] = formSections.flatMap(
+        (s) => s.json_blocks as FormBlockInstance[],
+      );
+      const blockTypes = this.extractBlockTypes(allJsonBlocks);
 
+      if (filters && Object.keys(filters).length > 0) {
+        const fieldValueResponseWhere: any = {
+          OR: Object.entries(filters).map(([field_id, values]) => {
+            const blockType = blockTypes[field_id];
             if (blockType === 'InputNumber') {
-              return { block_id, value_number: { in: values.map(Number) } };
-            } else if (['CheckBox', 'RangePicker'].includes(blockType)) {
-              return { block_id, value_array: { hasSome: values } };
+              return { field_id, value_number: { in: values.map(Number) } };
+            } else if (
+              blockType === 'CheckBox' ||
+              blockType === 'RangePicker'
+            ) {
+              return { field_id, value_array: { hasSome: values } };
+            } else if (
+              blockType === 'SelectOption' ||
+              blockType === 'RadioSelect'
+            ) {
+              return { field_id, value_string: { in: values } };
             } else {
-              return { block_id, value_string: { in: values } };
+              return { field_id, value_string: { in: values } };
             }
-          },
-        );
+          }),
+        };
 
         const blockResponses =
           await this.prismaService.fieldValueResponses.findMany({
-            where: FieldValueResponseWhere,
+            where: fieldValueResponseWhere,
             select: { form_response_id: true },
             distinct: ['form_response_id'],
           });
@@ -127,63 +133,146 @@ export class FormResponsesService {
         whereFormResponses.AND.push({ id: { in: formResponseIds } });
       }
 
-      let orderBy: any = [];
-      if (sortField && sortOrder) {
-        const direction = sortOrder === 'ascend' ? 'asc' : 'desc';
-        const blockType = this.extractBlockTypes(
-          (
-            await this.prismaService.formSections.findMany({
-              where: { form_id: formId },
-              select: { json_blocks: true },
-            })
-          ).flatMap((s) => s.json_blocks as FormBlockInstance[]),
-        )[sortField];
+      let responses;
+      const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC';
 
-        if (blockType === 'InputNumber') {
-          orderBy = [
-            {
-              block_responses: {
-                _every: { block_id: sortField, value_number: direction },
-              },
-            },
-          ];
-        }
-      }
-      const [responses, total] = await Promise.all([
-        this.prismaService.formResponses.findMany({
+      if (sortField === 'total_final_score' && sortOrder) {
+        let queryParams: any[] = [formId];
+        let paramIndex = 2;
+        const rawQuery = `
+        SELECT fr.*
+        FROM "FormResponses" fr
+        WHERE fr.form_id = $1
+        ${search ? `AND (fr.name ILIKE $${paramIndex++} OR fr.email ILIKE $${paramIndex - 1} OR fr.phone_number ILIKE $${paramIndex - 1})` : ''}
+        ${universityId ? `AND fr.university_id = $${paramIndex++}` : ''}
+        ${whereFormResponses.AND.some((c: any) => c.id) ? 'AND fr.id IN (' + whereFormResponses.AND.find((c: any) => c.id).id.in.join(',') + ')' : ''}
+        ORDER BY fr.total_final_score ${direction} NULLS LAST, fr.created_at ${direction} NULLS LAST
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `;
+        if (search) queryParams.push(`%${search}%`);
+        if (universityId) queryParams.push(universityId);
+        queryParams.push(take, skip);
+
+        responses = await this.prismaService.$queryRawUnsafe(
+          rawQuery,
+          ...queryParams,
+        );
+        const responseIds = responses.map((r: any) => r.id);
+        responses = await this.prismaService.formResponses.findMany({
+          where: { id: { in: responseIds } },
+          include: { field_value_responses: true, university: true },
+        });
+        responses = responseIds.map((id: number) =>
+          responses.find((r) => r.id === id),
+        );
+      } else if (sortField === 'created_at' && sortOrder) {
+        let queryParams: any[] = [formId];
+        let paramIndex = 2;
+        const rawQuery = `
+        SELECT fr.*
+        FROM "FormResponses" fr
+        WHERE fr.form_id = $1
+        ${search ? `AND (fr.name ILIKE $${paramIndex++} OR fr.email ILIKE $${paramIndex - 1} OR fr.phone_number ILIKE $${paramIndex - 1})` : ''}
+        ${universityId ? `AND fr.university_id = $${paramIndex++}` : ''}
+        ${whereFormResponses.AND.some((c: any) => c.id) ? 'AND fr.id IN (' + whereFormResponses.AND.find((c: any) => c.id).id.in.join(',') + ')' : ''}
+        ORDER BY fr.created_at ${direction} NULLS LAST
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `;
+        if (search) queryParams.push(`%${search}%`);
+        if (universityId) queryParams.push(universityId);
+        queryParams.push(take, skip);
+
+        responses = await this.prismaService.$queryRawUnsafe(
+          rawQuery,
+          ...queryParams,
+        );
+        const responseIds = responses.map((r: any) => r.id);
+        responses = await this.prismaService.formResponses.findMany({
+          where: { id: { in: responseIds } },
+          include: { field_value_responses: true, university: true },
+        });
+        responses = responseIds.map((id: number) =>
+          responses.find((r) => r.id === id),
+        );
+      } else if (
+        sortField &&
+        sortOrder &&
+        blockTypes[sortField] === 'InputNumber'
+      ) {
+        let queryParams: any[] = [sortField, formId];
+        let paramIndex = 3;
+        const rawQuery = `
+        SELECT fr.*
+        FROM "FormResponses" fr
+        LEFT JOIN "FieldValueResponses" fvr ON fr.id = fvr.form_response_id AND fvr.field_id = $1
+        WHERE fr.form_id = $2
+        ${search ? `AND (fr.name ILIKE $${paramIndex++} OR fr.email ILIKE $${paramIndex - 1} OR fr.phone_number ILIKE $${paramIndex - 1})` : ''}
+        ${universityId ? `AND fr.university_id = $${paramIndex++}` : ''}
+        ${whereFormResponses.AND.some((c: any) => c.id) ? 'AND fr.id IN (' + whereFormResponses.AND.find((c: any) => c.id).id.in.join(',') + ')' : ''}
+        ORDER BY fvr.value_number ${direction} NULLS LAST
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `;
+        if (search) queryParams.push(`%${search}%`);
+        if (universityId) queryParams.push(universityId);
+        queryParams.push(take, skip);
+
+        responses = await this.prismaService.$queryRawUnsafe(
+          rawQuery,
+          ...queryParams,
+        );
+        const responseIds = responses.map((r: any) => r.id);
+        responses = await this.prismaService.formResponses.findMany({
+          where: { id: { in: responseIds } },
+          include: { field_value_responses: true, university: true },
+        });
+        responses = responseIds.map((id: number) =>
+          responses.find((r) => r.id === id),
+        );
+      } else {
+        responses = await this.prismaService.formResponses.findMany({
           where: whereFormResponses,
           skip,
           take,
-          orderBy,
-          include: {
-            field_value_responses: true,
-            university: true,
-          },
-        }),
-        this.prismaService.formResponses.count({ where: whereFormResponses }),
-      ]);
+          include: { field_value_responses: true, university: true },
+        });
+      }
+
+      const total = await this.prismaService.formResponses.count({
+        where: whereFormResponses,
+      });
+
       const data = responses.map((response) => ({
         id: response.id,
         name: response.name,
         email: response.email,
         phone_number: response.phone_number,
         university: response.university?.name || '-',
+        total_final_score: response.total_final_score,
+        final_scores: [...response.final_scores],
+        status: response.status,
+        created_at: response.created_at,
         ...response.field_value_responses.reduce((acc, block) => {
-          acc[block.field_id] =
-            block.value_string ??
-            block.value_number ??
-            block.value_array ??
-            block.value_json ??
-            '-';
+          if (block.value_json !== null) {
+            acc[block.field_id] = block.value_json;
+          } else if (block.value_array && block.value_array.length > 0) {
+            acc[block.field_id] = block.value_array;
+          } else if (block.value_number !== null) {
+            acc[block.field_id] = block.value_number;
+          } else if (block.value_string !== null) {
+            acc[block.field_id] = block.value_string;
+          } else {
+            acc[block.field_id] = null;
+          }
           return acc;
         }, {}),
       }));
+
       return {
         data,
         pagination: {
           current: currentPage,
           pageSize: itemsPerPage,
-          total,
+          totalRecords: total,
         },
       };
     } catch (error) {
@@ -193,8 +282,14 @@ export class FormResponsesService {
   }
 
   async submitForm(data: SubmitFormDto) {
-    const { form_id, name, email, phone_number, university, ...dynamicFields } =
-      data;
+    const {
+      form_id,
+      name,
+      email,
+      phone_number,
+      universityId,
+      ...dynamicFields
+    } = data;
     try {
       const formSections = await this.prismaService.formSections.findMany({
         where: { form_id },
@@ -214,17 +309,19 @@ export class FormResponsesService {
             name,
             email,
             phone_number,
-            university_id: university,
+            university_id: universityId,
             form_id,
+            total_final_score: null,
+            final_scores: [],
           },
         });
         const blockResponses = Object.entries(dynamicFields)
-          .filter(([block_id]) => blockTypes[block_id])
-          .map(([block_id, value]) => {
-            const blockType = blockTypes[block_id];
+          .filter(([field_id]) => blockTypes[field_id])
+          .map(([field_id, value]) => {
+            const blockType = blockTypes[field_id];
             const blockData: any = {
               form_response_id: formResponse.id,
-              field_id: block_id,
+              field_id,
             };
             switch (blockType) {
               case 'InputText':
@@ -247,7 +344,7 @@ export class FormResponsesService {
                 break;
               case 'Uploader':
               case 'Signature':
-                blockData.value_json = Object(value);
+                blockData.value_json = value;
                 break;
               case 'RowLayout':
               case 'Heading':

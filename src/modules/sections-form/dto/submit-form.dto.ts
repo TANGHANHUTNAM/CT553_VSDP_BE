@@ -32,7 +32,7 @@ export class SubmitFormDto {
 
   @IsInt()
   @IsOptional()
-  university?: number;
+  universityId?: number;
 
   @Transform(({ obj }) => obj)
   rawData: any;

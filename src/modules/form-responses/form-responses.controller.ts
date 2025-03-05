@@ -6,6 +6,8 @@ import {
   Patch,
   Param,
   Delete,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { FormResponsesService } from './form-responses.service';
 import { CreateFormResponseDto } from './dto/create-form-response.dto';
@@ -14,7 +16,7 @@ import { QueryPaginationFormResponseDto } from './dto/query-pagination-form-resp
 import { Public } from 'src/common/decorators/public.decorator';
 import { ResMessage } from 'src/common/decorators/response.decorator';
 import { SubmitFormDto } from '../sections-form/dto/submit-form.dto';
-
+@UsePipes(new ValidationPipe({ skipMissingProperties: true }))
 @Controller('form-responses')
 export class FormResponsesController {
   constructor(private readonly formResponsesService: FormResponsesService) {}
