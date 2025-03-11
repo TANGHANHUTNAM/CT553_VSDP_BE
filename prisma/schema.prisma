@@ -64,7 +64,6 @@ model RolePermission {
   permissionId Int
   permission   Permission @relation(fields: [permissionId], references: [id])
   role         Role       @relation(fields: [roleId], references: [id])
-
   @@id([roleId, permissionId])
 }
 
@@ -90,6 +89,8 @@ model Form {
   primary_color    String?           @default("#09BDD4")
   block_color      String?           @default("#ffffff")
   background_color String?           @default("#DAF5F9")
+  share_token      String?           @unique          
+  share_expiry     DateTime?        
   start_date       DateTime?
   end_date         DateTime?
   scope            Scope? 
@@ -100,6 +101,7 @@ model Form {
   form_responses   FormResponses[]
   form_sections    FormSections[]
   scoring_sections ScoringSections[]
+  snapshots        FormSnapshots[] 
 }
 
 model FormSections {
@@ -118,6 +120,8 @@ model FormResponses {
   name                 String
   email                String
   phone_number         String
+ snapshot_version     String                  
+  snapshot             FormSnapshots         @relation(fields: [snapshot_version], references: [version])
   created_at           DateTime?             @default(now()) @db.Timestamp
   form_id              String
   form                 Form                  @relation(fields: [form_id], references: [id])
@@ -139,19 +143,33 @@ model FormResponses {
 
 }
 
+
+model FormSnapshots {
+  id            Int            @id @default(autoincrement())
+  form_id       String
+  form          Form           @relation(fields: [form_id], references: [id])
+  version       String          @unique
+  snapshot_json Json[]         @default([])     
+  created_at    DateTime       @default(now()) @db.Timestamp
+  responses     FormResponses[]
+   
+  @@unique([form_id, version]) 
+}
+
 model FieldValueResponses {
   id              Int           @id @default(autoincrement())
   form_response_id Int
   field_id        String
-  value_string    String?       // Cho chuỗi: InputText, SelectOption, DatePicker, etc.
-  value_number    Float?        // Cho số: InputNumber
-  value_array     String[]     // Cho mảng: CheckBox, RangePicker
+  value_string    String?     
+  value_number    Float?        
+  value_array     String[]     
   value_json      Json?    
   form_response   FormResponses @relation(fields: [form_response_id], references: [id])
 
   @@index([form_response_id])
   @@index([field_id])
   @@index([value_number])
+  @@index([value_string])
 }
 
 model Universities {
@@ -220,6 +238,23 @@ model ResponseAssignments {
   updated_at         DateTime        @updatedAt @db.Timestamp
 
   @@index([form_response_id, user_id, scoring_section_id])
+}
+
+model Page {
+  id          Int      @id @default(autoincrement())
+  sluge      String   @unique
+  title       String
+ content Json[]   @default([])
+  created_at  DateTime @default(now()) @db.Timestamp
+  updated_at  DateTime @updatedAt @db.Timestamp
+}
+
+model SiteConfig {
+  id          Int      @id @default(autoincrement())
+  key       String   @unique
+  value Json[]   @default([])
+  created_at  DateTime @default(now()) @db.Timestamp
+  updated_at  DateTime @updatedAt @db.Timestamp
 }
 
 enum ApplicantStatus {

@@ -1,6 +1,8 @@
 import { PartialType } from '@nestjs/mapped-types';
+import { ApplicantStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsObject,
@@ -30,4 +32,9 @@ export class QueryPaginationFormResponseDto extends PartialType(QueryParams) {
   @IsObject()
   @IsOptional()
   filters?: Record<string, string[]>;
+
+  @IsOptional()
+  @IsEnum(ApplicantStatus)
+  @IsString()
+  status?: string;
 }

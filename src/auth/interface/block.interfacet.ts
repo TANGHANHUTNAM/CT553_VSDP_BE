@@ -17,6 +17,14 @@ export type FormBlockType =
   | 'Link'
   | 'EditorDescription';
 
+export const FormBlockNoInput = [
+  'Heading',
+  'Paragraph',
+  'EditorDescription',
+  'Link',
+  'RowLayout',
+];
+
 export type FormBlockInstance = {
   id: string;
   blockType: FormBlockType;

@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import * as crypto from 'crypto';
 import {
   FormBlockInstance,
+  FormBlockNoInput,
   FormBlockType,
 } from 'src/auth/interface/block.interfacet';
 import { PrismaService } from 'src/core/prisma.service';
@@ -9,7 +11,6 @@ import { SubmitFormDto } from '../sections-form/dto/submit-form.dto';
 import { CreateFormResponseDto } from './dto/create-form-response.dto';
 import { QueryPaginationFormResponseDto } from './dto/query-pagination-form-response.dto';
 import { UpdateFormResponseDto } from './dto/update-form-response.dto';
-
 @Injectable()
 export class FormResponsesService {
   constructor(
@@ -17,6 +18,26 @@ export class FormResponsesService {
     private logService: LogService,
   ) {
     this.logService.setContext(FormResponsesService.name);
+  }
+
+  private extractInputBlocks(
+    blocks: FormBlockInstance[],
+  ): Array<{ id: string; label: string; blockType: string }> {
+    return blocks.flatMap((block) => {
+      if (!FormBlockNoInput.includes(block.blockType as any)) {
+        return [
+          {
+            id: block.id,
+            label: (block.attributes?.label as string) || '',
+            blockType: block.blockType,
+          },
+        ];
+      }
+      if (block.childBlock) {
+        return this.extractInputBlocks(block.childBlock);
+      }
+      return [];
+    });
   }
 
   public extractBlockTypes(
@@ -45,10 +66,6 @@ export class FormResponsesService {
     return `This action returns all formResponses`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} formResponse`;
-  }
-
   update(id: number, updateFormResponseDto: UpdateFormResponseDto) {
     return `This action updates a #${id} formResponse`;
   }
@@ -67,6 +84,7 @@ export class FormResponsesService {
       sortField,
       sortOrder,
       universityId,
+      status,
     } = data;
 
     try {
@@ -88,6 +106,7 @@ export class FormResponsesService {
               }
             : {},
           universityId ? { university_id: universityId } : {},
+          status ? { status } : {},
         ],
       };
 
@@ -130,6 +149,16 @@ export class FormResponsesService {
           });
 
         const formResponseIds = blockResponses.map((br) => br.form_response_id);
+        if (formResponseIds.length === 0) {
+          return {
+            data: [],
+            pagination: {
+              current: currentPage,
+              pageSize: itemsPerPage,
+              totalRecords: 0,
+            },
+          };
+        }
         whereFormResponses.AND.push({ id: { in: formResponseIds } });
       }
 
@@ -145,13 +174,14 @@ export class FormResponsesService {
         WHERE fr.form_id = $1
         ${search ? `AND (fr.name ILIKE $${paramIndex++} OR fr.email ILIKE $${paramIndex - 1} OR fr.phone_number ILIKE $${paramIndex - 1})` : ''}
         ${universityId ? `AND fr.university_id = $${paramIndex++}` : ''}
+        ${status ? `AND fr.status = $${paramIndex++}::"ApplicantStatus"` : ''}
         ${whereFormResponses.AND.some((c: any) => c.id) ? 'AND fr.id IN (' + whereFormResponses.AND.find((c: any) => c.id).id.in.join(',') + ')' : ''}
         ORDER BY fr.total_final_score ${direction} NULLS LAST, fr.created_at ${direction} NULLS LAST
-        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+        LIMIT ${take} OFFSET ${skip}
       `;
         if (search) queryParams.push(`%${search}%`);
         if (universityId) queryParams.push(universityId);
-        queryParams.push(take, skip);
+        if (status) queryParams.push(status);
 
         responses = await this.prismaService.$queryRawUnsafe(
           rawQuery,
@@ -174,13 +204,14 @@ export class FormResponsesService {
         WHERE fr.form_id = $1
         ${search ? `AND (fr.name ILIKE $${paramIndex++} OR fr.email ILIKE $${paramIndex - 1} OR fr.phone_number ILIKE $${paramIndex - 1})` : ''}
         ${universityId ? `AND fr.university_id = $${paramIndex++}` : ''}
+        ${status ? `AND fr.status = $${paramIndex++}::"ApplicantStatus"` : ''}
         ${whereFormResponses.AND.some((c: any) => c.id) ? 'AND fr.id IN (' + whereFormResponses.AND.find((c: any) => c.id).id.in.join(',') + ')' : ''}
         ORDER BY fr.created_at ${direction} NULLS LAST
-        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+        LIMIT ${take} OFFSET ${skip}
       `;
         if (search) queryParams.push(`%${search}%`);
         if (universityId) queryParams.push(universityId);
-        queryParams.push(take, skip);
+        if (status) queryParams.push(status);
 
         responses = await this.prismaService.$queryRawUnsafe(
           rawQuery,
@@ -208,13 +239,14 @@ export class FormResponsesService {
         WHERE fr.form_id = $2
         ${search ? `AND (fr.name ILIKE $${paramIndex++} OR fr.email ILIKE $${paramIndex - 1} OR fr.phone_number ILIKE $${paramIndex - 1})` : ''}
         ${universityId ? `AND fr.university_id = $${paramIndex++}` : ''}
+        ${status ? `AND fr.status = $${paramIndex++}::"ApplicantStatus"` : ''}
         ${whereFormResponses.AND.some((c: any) => c.id) ? 'AND fr.id IN (' + whereFormResponses.AND.find((c: any) => c.id).id.in.join(',') + ')' : ''}
         ORDER BY fvr.value_number ${direction} NULLS LAST
-        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+        LIMIT ${take} OFFSET ${skip}
       `;
         if (search) queryParams.push(`%${search}%`);
         if (universityId) queryParams.push(universityId);
-        queryParams.push(take, skip);
+        if (status) queryParams.push(status);
 
         responses = await this.prismaService.$queryRawUnsafe(
           rawQuery,
@@ -250,6 +282,7 @@ export class FormResponsesService {
         total_final_score: response.total_final_score,
         final_scores: [...response.final_scores],
         status: response.status,
+        snapshot_version: response.snapshot_version,
         created_at: response.created_at,
         ...response.field_value_responses.reduce((acc, block) => {
           if (block.value_json !== null) {
@@ -282,39 +315,70 @@ export class FormResponsesService {
   }
 
   async submitForm(data: SubmitFormDto) {
-    const {
-      form_id,
-      name,
-      email,
-      phone_number,
-      universityId,
-      ...dynamicFields
-    } = data;
+    const { form_id, name, email, phone_number, university, ...dynamicFields } =
+      data;
     try {
-      const formSections = await this.prismaService.formSections.findMany({
-        where: { form_id },
-        select: { json_blocks: true },
+      const form = await this.prismaService.form.findUnique({
+        where: { id: form_id },
       });
-
-      if (formSections.length === 0) {
+      if (!form) {
         throw new BadRequestException('Form not found!');
       }
-      const allJsonBlocks: FormBlockInstance[] = formSections.flatMap(
-        (section) => section.json_blocks as FormBlockInstance[],
-      );
-      const blockTypes = this.extractBlockTypes(allJsonBlocks);
+      if (!form.is_public) {
+        throw new BadRequestException('Form is not public!');
+      }
+      const formSections = await this.prismaService.formSections.findMany({
+        where: { form_id },
+        select: {
+          json_blocks: true,
+          name: true,
+          id: true,
+        },
+      });
+
+      const simplifiedStructure = formSections
+        .sort((a, b) => a.id - b.id)
+        .map((section) => ({
+          id: section.id,
+          name: section.name,
+          blocks: this.extractInputBlocks(
+            section.json_blocks as FormBlockInstance[],
+          ),
+        }));
+      const formStructure = JSON.stringify(simplifiedStructure);
+      const version = crypto
+        .createHash('md5')
+        .update(formStructure)
+        .digest('hex');
       return this.prismaService.$transaction(async (prisma) => {
+        const snapshot = await prisma.formSnapshots.upsert({
+          where: { form_id_version: { form_id, version } },
+          update: {},
+          create: {
+            form_id,
+            version,
+            snapshot_json: simplifiedStructure,
+          },
+        });
+
         const formResponse = await prisma.formResponses.create({
           data: {
             name,
             email,
             phone_number,
-            university_id: universityId,
+            university_id: university,
             form_id,
+            snapshot_version: version,
             total_final_score: null,
             final_scores: [],
           },
         });
+
+        const allJsonBlocks: FormBlockInstance[] = formSections.flatMap(
+          (section) => section.json_blocks as FormBlockInstance[],
+        );
+        const blockTypes = this.extractBlockTypes(allJsonBlocks);
+
         const blockResponses = Object.entries(dynamicFields)
           .filter(([field_id]) => blockTypes[field_id])
           .map(([field_id, value]) => {
@@ -323,6 +387,7 @@ export class FormResponsesService {
               form_response_id: formResponse.id,
               field_id,
             };
+
             switch (blockType) {
               case 'InputText':
               case 'TextArea':
@@ -346,24 +411,102 @@ export class FormResponsesService {
               case 'Signature':
                 blockData.value_json = value;
                 break;
-              case 'RowLayout':
-              case 'Heading':
-              case 'Paragraph':
-              case 'Link':
-              case 'EditorDescription':
-                return null;
               default:
-                blockData.value_string = String(value);
+                return null;
             }
-
             return blockData;
           })
           .filter((block) => block !== null);
+
         await prisma.fieldValueResponses.createMany({
           data: blockResponses,
         });
+
         return formResponse;
       });
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async getFormResponseDetail(responseId: number) {
+    try {
+      const formResponse = await this.prismaService.formResponses.findUnique({
+        where: { id: responseId },
+        include: {
+          university: true,
+          field_value_responses: true,
+        },
+      });
+
+      if (!formResponse) {
+        throw new BadRequestException('Form response not found!');
+      }
+
+      const snapshot = await this.prismaService.formSnapshots.findUnique({
+        where: {
+          form_id_version: {
+            form_id: formResponse.form_id,
+            version: formResponse.snapshot_version,
+          },
+        },
+        select: { snapshot_json: true },
+      });
+
+      if (!snapshot) {
+        throw new BadRequestException('Form snapshot not found!');
+      }
+
+      const snapshotStructure = snapshot.snapshot_json as Array<{
+        name: string;
+        blocks: Array<{ id: string; label: string; blockType: string }>;
+      }>;
+
+      const fieldValues = formResponse.field_value_responses.reduce(
+        (acc, field) => {
+          if (field.value_json !== null) {
+            acc[field.field_id] = field.value_json;
+          } else if (field.value_array && field.value_array.length > 0) {
+            acc[field.field_id] = field.value_array;
+          } else if (field.value_number !== null) {
+            acc[field.field_id] = field.value_number;
+          } else if (field.value_string !== null) {
+            acc[field.field_id] = field.value_string;
+          } else {
+            acc[field.field_id] = null;
+          }
+          return acc;
+        },
+        {} as Record<string, any>,
+      );
+
+      const detailedSections = snapshotStructure.map((section) => ({
+        name: section.name,
+        fields: section.blocks.map((block) => ({
+          id: block.id,
+          label: block.label,
+          blockType: block.blockType,
+          value: fieldValues[block.id] ?? null,
+        })),
+      }));
+
+      const responseDetail = {
+        id: formResponse.id,
+        name: formResponse.name,
+        email: formResponse.email,
+        phone_number: formResponse.phone_number,
+        university: formResponse.university?.name || '-',
+        total_final_score: formResponse.total_final_score,
+        final_scores: [...formResponse.final_scores],
+        status: formResponse.status,
+        created_at: formResponse.created_at,
+        form_id: formResponse.form_id,
+        snapshot_version: formResponse.snapshot_version,
+        sections: detailedSections,
+      };
+
+      return responseDetail;
     } catch (error) {
       this.logService.error(error);
       throw error;

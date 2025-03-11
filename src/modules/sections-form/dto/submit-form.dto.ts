@@ -15,24 +15,19 @@ class DynamicField {
 
 export class SubmitFormDto {
   @IsString()
-  @IsNotEmpty()
   form_id: string;
 
   @IsString()
-  @IsNotEmpty()
   name: string;
 
   @IsString()
-  @IsNotEmpty()
   email: string;
 
   @IsString()
-  @IsNotEmpty()
   phone_number: string;
 
   @IsInt()
-  @IsOptional()
-  universityId?: number;
+  university?: number;
 
   @Transform(({ obj }) => obj)
   rawData: any;

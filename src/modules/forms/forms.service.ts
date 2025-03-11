@@ -10,7 +10,9 @@ import { UpdateFormUploadImage } from './dto/update-form-uploadImage';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { UpdateFormBuilderDto } from './dto/update-form-builder.dto';
 import { UpdateStatusPublicFormDto } from './dto/update-status-public-form.dto';
+import * as ExcelJS from 'exceljs';
 
+import { Buffer } from 'buffer';
 @Injectable()
 export class FormsService {
   constructor(
@@ -385,6 +387,134 @@ export class FormsService {
         },
       });
       return newForm;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async getPublicFormShareLink(id: string) {
+    try {
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async exportFormResponsesToExcel(formId: string): Promise<Buffer> {
+    try {
+      const formResponses = await this.prisma.formResponses.findMany({
+        where: { form_id: formId },
+        include: {
+          university: true,
+          field_value_responses: true,
+        },
+      });
+
+      if (formResponses.length === 0) {
+        throw new BadRequestException('No responses found for this form!');
+      }
+
+      const snapshotVersions = [
+        ...new Set(formResponses.map((r) => r.snapshot_version)),
+      ];
+      const snapshots = await this.prisma.formSnapshots.findMany({
+        where: {
+          form_id: formId,
+          version: { in: snapshotVersions },
+        },
+        select: { version: true, snapshot_json: true },
+      });
+
+      const snapshotMap = snapshots.reduce(
+        (acc, snapshot) => {
+          acc[snapshot.version] = snapshot.snapshot_json as Array<{
+            name: string;
+            blocks: Array<{ id: string; label: string; blockType: string }>;
+          }>;
+          return acc;
+        },
+        {} as Record<string, any>,
+      );
+
+      const allFields = new Map<string, { label: string; blockType: string }>();
+      Object.values(snapshotMap).forEach((sections: any[]) => {
+        sections.forEach((section) => {
+          section.blocks.forEach((block) => {
+            if (!allFields.has(block.id)) {
+              allFields.set(block.id, {
+                label: block.label,
+                blockType: block.blockType,
+              });
+            }
+          });
+        });
+      });
+
+      const headers = [
+        { header: 'ID', key: 'id', width: 10 },
+        { header: 'Name', key: 'name', width: 20 },
+        { header: 'Email', key: 'email', width: 30 },
+        { header: 'Phone Number', key: 'phone_number', width: 15 },
+        { header: 'University', key: 'university', width: 20 },
+        { header: 'Final Scores', key: 'final_scores', width: 15 },
+        { header: 'Total Final Score', key: 'total_final_score', width: 15 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Created At', key: 'created_at', width: 20 },
+        ...Array.from(allFields.entries()).map(([fieldId, field]) => ({
+          header: field.label || fieldId,
+          key: fieldId,
+          width: 20,
+        })),
+      ];
+
+      const rows = formResponses.map((response) => {
+        const fieldValues = response.field_value_responses.reduce(
+          (acc, field) => {
+            if (field.value_json !== null) {
+              acc[field.field_id] = JSON.stringify(field.value_json);
+            } else if (field.value_array && field.value_array.length > 0) {
+              acc[field.field_id] = field.value_array.join(', ');
+            } else if (field.value_number !== null) {
+              acc[field.field_id] = field.value_number;
+            } else if (field.value_string !== null) {
+              acc[field.field_id] = field.value_string;
+            } else {
+              acc[field.field_id] = '';
+            }
+            return acc;
+          },
+          {} as Record<string, any>,
+        );
+
+        return {
+          id: response.id,
+          name: response.name,
+          email: response.email,
+          phone_number: response.phone_number,
+          university: response.university?.name || '-',
+          final_scores: JSON.stringify(response.final_scores) ?? '',
+          total_final_score: response.total_final_score ?? '',
+          status: response.status ?? '',
+          created_at: response.created_at.toISOString(),
+          ...fieldValues,
+        };
+      });
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Form Responses');
+
+      worksheet.columns = headers;
+      worksheet.addRows(rows);
+
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
+
+      const buffer = (await workbook.xlsx.writeBuffer()) as Buffer;
+      return buffer;
     } catch (error) {
       this.logService.error(error);
       throw error;

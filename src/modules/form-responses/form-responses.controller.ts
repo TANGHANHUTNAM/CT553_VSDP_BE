@@ -8,7 +8,9 @@ import {
   Delete,
   UsePipes,
   ValidationPipe,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FormResponsesService } from './form-responses.service';
 import { CreateFormResponseDto } from './dto/create-form-response.dto';
 import { UpdateFormResponseDto } from './dto/update-form-response.dto';
@@ -31,10 +33,10 @@ export class FormResponsesController {
     return this.formResponsesService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.formResponsesService.findOne(+id);
-  }
+  // @Get(':id')
+  // findOne(@Param('id') id: string) {
+  //   return this.formResponsesService.findOne(+id);
+  // }
 
   @Patch(':id')
   update(
@@ -60,4 +62,11 @@ export class FormResponsesController {
   getFormResponseByFormId(@Body() data: QueryPaginationFormResponseDto) {
     return this.formResponsesService.getFormResponseByFormId(data);
   }
+
+  @Get(':id')
+  getFormResponseDetail(@Param('id') id: string) {
+    return this.formResponsesService.getFormResponseDetail(+id);
+  }
+
+  
 }

@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FormsService } from './forms.service';
 import { CreateFormDto } from './dto/create-form.dto';
 import { UpdateFormDto } from './dto/update-form.dto';
@@ -111,5 +112,25 @@ export class FormsController {
   @Get('public/scholarship')
   getPublicFormScholarship() {
     return this.formsService.getPublicFormScholarship();
+  }
+
+  @Public()
+  @ResMessage('Lấy biểu mẫu share link')
+  @Get('public/share-link/:id')
+  getPublicFormShareLink(@Param('id') id: string) {
+    return this.formsService.getPublicFormShareLink(id);
+  }
+
+  @Get(':id/export-excel')
+  async exportToExcel(@Param('id') formId: string, @Res() res: Response) {
+    const buffer = await this.formsService.exportFormResponsesToExcel(formId);
+
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="form_responses_${formId}.xlsx"`,
+    });
+
+    res.send(buffer);
   }
 }
