@@ -25,10 +25,10 @@ model User {
   active               Boolean               @default(true)
   is_external_guest    Boolean               @default(false)
   refresh_token        String?
-  start_date           DateTime?             @db.Timestamp
-  end_date             DateTime?             @db.Timestamp
-  created_at           DateTime?             @default(now()) @db.Timestamp
-  updated_at           DateTime?             @updatedAt @db.Timestamp
+  start_date           DateTime?             @db.Timestamptz
+  end_date             DateTime?             @db.Timestamptz
+  created_at           DateTime?             @default(now()) @db.Timestamptz
+  updated_at           DateTime?             @updatedAt @db.Timestamptz
   roleId               Int
   role                 Role                  @relation(fields: [roleId], references: [id])
   response_scores      ResponseScores[]
@@ -96,8 +96,8 @@ model Form {
   scope            Scope? 
   image_url        String?
   public_id        String?
-  created_at       DateTime?         @default(now()) @db.Timestamp
-  updated_at       DateTime?         @updatedAt @db.Timestamp
+  created_at       DateTime?         @default(now()) @db.Timestamptz
+  updated_at       DateTime?         @updatedAt @db.Timestamptz
   form_responses   FormResponses[]
   form_sections    FormSections[]
   scoring_sections ScoringSections[]
@@ -109,8 +109,8 @@ model FormSections {
   name        String
   description String?
   json_blocks Json[]   @default([])
-  created_at  DateTime @default(now()) @db.Timestamp
-  updated_at  DateTime @updatedAt @db.Timestamp
+  created_at  DateTime @default(now()) @db.Timestamptz
+  updated_at  DateTime @updatedAt @db.Timestamptz
   form_id     String
   form        Form     @relation(fields: [form_id], references: [id])
 }
@@ -122,7 +122,7 @@ model FormResponses {
   phone_number         String
  snapshot_version     String                  
   snapshot             FormSnapshots         @relation(fields: [snapshot_version], references: [version])
-  created_at           DateTime?             @default(now()) @db.Timestamp
+  created_at           DateTime?             @default(now()) @db.Timestamptz
   form_id              String
   form                 Form                  @relation(fields: [form_id], references: [id])
   status               ApplicantStatus?      @default(SUBMITTED)
@@ -133,6 +133,7 @@ model FormResponses {
   final_scores         Json[]                @default([])
   total_final_score    Int?
   field_value_responses FieldValueResponses[]
+  updated_at           DateTime?             @updatedAt @db.Timestamptz
 
   @@index([name])
   @@index([email])
@@ -150,7 +151,7 @@ model FormSnapshots {
   form          Form           @relation(fields: [form_id], references: [id])
   version       String          @unique
   snapshot_json Json[]         @default([])     
-  created_at    DateTime       @default(now()) @db.Timestamp
+  created_at    DateTime       @default(now()) @db.Timestamptz
   responses     FormResponses[]
    
   @@unique([form_id, version]) 
@@ -176,8 +177,8 @@ model Universities {
   id             Int             @id @default(autoincrement())
   name           String          @unique
   is_active      Boolean         @default(true)
-  created_at     DateTime        @default(now()) @db.Timestamp
-  updated_at     DateTime        @updatedAt @db.Timestamp
+  created_at     DateTime        @default(now()) @db.Timestamptz
+  updated_at     DateTime        @updatedAt @db.Timestamptz
   form_responses FormResponses[]
 }
 
@@ -186,8 +187,8 @@ model ScoringSections {
   name                 String
   description          String?
   max_score            Int
-  created_at           DateTime              @default(now()) @db.Timestamp
-  updated_at           DateTime              @updatedAt @db.Timestamp
+  created_at           DateTime              @default(now()) @db.Timestamptz
+  updated_at           DateTime              @updatedAt @db.Timestamptz
   form_id              String
   form                 Form                  @relation(fields: [form_id], references: [id])
   scoring_criteria     ScoringCriterias[]
@@ -200,8 +201,8 @@ model ScoringCriterias {
   description        String?
   max_score          Int
   min_score          Int
-  created_at         DateTime         @default(now()) @db.Timestamp
-  updated_at         DateTime         @updatedAt @db.Timestamp
+  created_at         DateTime         @default(now()) @db.Timestamptz
+  updated_at         DateTime         @updatedAt @db.Timestamptz
   scoring_section_id Int
   scoring_section    ScoringSections  @relation(fields: [scoring_section_id], references: [id])
   response_scores    ResponseScores[]
@@ -211,8 +212,8 @@ model ResponseScores {
   id                  Int              @id @default(autoincrement())
   score_value         Int
   comment             String?
-  created_at          DateTime         @default(now()) @db.Timestamp
-  updated_at          DateTime         @updatedAt @db.Timestamp
+  created_at          DateTime         @default(now()) @db.Timestamptz
+  updated_at          DateTime         @updatedAt @db.Timestamptz
   form_response_id    Int
   form_response       FormResponses    @relation(fields: [form_response_id], references: [id])
   scoring_criteria_id Int
@@ -234,8 +235,8 @@ model ResponseAssignments {
   user               User            @relation(fields: [user_id], references: [id])
   scoring_section_id Int
   scoring_section    ScoringSections @relation(fields: [scoring_section_id], references: [id])
-  created_at         DateTime        @default(now()) @db.Timestamp
-  updated_at         DateTime        @updatedAt @db.Timestamp
+  created_at         DateTime        @default(now()) @db.Timestamptz
+  updated_at         DateTime        @updatedAt @db.Timestamptz
 
   @@index([form_response_id, user_id, scoring_section_id])
 }
@@ -245,16 +246,16 @@ model Page {
   sluge      String   @unique
   title       String
  content Json[]   @default([])
-  created_at  DateTime @default(now()) @db.Timestamp
-  updated_at  DateTime @updatedAt @db.Timestamp
+  created_at  DateTime @default(now()) @db.Timestamptz
+  updated_at  DateTime @updatedAt @db.Timestamptz
 }
 
 model SiteConfig {
   id          Int      @id @default(autoincrement())
   key       String   @unique
   value Json[]   @default([])
-  created_at  DateTime @default(now()) @db.Timestamp
-  updated_at  DateTime @updatedAt @db.Timestamp
+  created_at  DateTime @default(now()) @db.Timestamptz
+  updated_at  DateTime @updatedAt @db.Timestamptz
 }
 
 enum ApplicantStatus {

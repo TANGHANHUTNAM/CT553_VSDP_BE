@@ -1,23 +1,21 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
   UsePipes,
   ValidationPipe,
-  Res,
 } from '@nestjs/common';
-import { Response } from 'express';
-import { FormResponsesService } from './form-responses.service';
-import { CreateFormResponseDto } from './dto/create-form-response.dto';
-import { UpdateFormResponseDto } from './dto/update-form-response.dto';
-import { QueryPaginationFormResponseDto } from './dto/query-pagination-form-response.dto';
 import { Public } from 'src/common/decorators/public.decorator';
 import { ResMessage } from 'src/common/decorators/response.decorator';
-import { SubmitFormDto } from '../sections-form/dto/submit-form.dto';
+import { CreateFormResponseDto } from './dto/create-form-response.dto';
+import { QueryPaginationFormResponseDto } from './dto/query-pagination-form-response.dto';
+import { UpdateFormResponseDto } from './dto/update-form-response.dto';
+import { FormResponsesService } from './form-responses.service';
+
 @UsePipes(new ValidationPipe({ skipMissingProperties: true }))
 @Controller('form-responses')
 export class FormResponsesController {
@@ -38,6 +36,7 @@ export class FormResponsesController {
   //   return this.formResponsesService.findOne(+id);
   // }
 
+  @ResMessage('Cập nhật phản hồi biểu mẫu thành công!')
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -54,7 +53,7 @@ export class FormResponsesController {
   @Public()
   @ResMessage('Nộp biểu mẫu thành công!')
   @Post('submit/form')
-  submitForm(@Body() data: SubmitFormDto) {
+  submitForm(@Body() data: CreateFormResponseDto) {
     return this.formResponsesService.submitForm(data);
   }
 
@@ -67,6 +66,4 @@ export class FormResponsesController {
   getFormResponseDetail(@Param('id') id: string) {
     return this.formResponsesService.getFormResponseDetail(+id);
   }
-
-  
 }

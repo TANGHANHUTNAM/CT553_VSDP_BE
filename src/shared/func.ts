@@ -39,3 +39,10 @@ export function generateOTP(length: number = OTP_LENGTH): string {
   }
   return otp;
 }
+
+export function generateRandomUuid(): string {
+  return (
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15)
+  );
+}

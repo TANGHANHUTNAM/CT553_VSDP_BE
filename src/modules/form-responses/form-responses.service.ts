@@ -7,7 +7,7 @@ import {
 } from 'src/auth/interface/block.interfacet';
 import { PrismaService } from 'src/core/prisma.service';
 import { LogService } from 'src/log/log.service';
-import { SubmitFormDto } from '../sections-form/dto/submit-form.dto';
+
 import { CreateFormResponseDto } from './dto/create-form-response.dto';
 import { QueryPaginationFormResponseDto } from './dto/query-pagination-form-response.dto';
 import { UpdateFormResponseDto } from './dto/update-form-response.dto';
@@ -20,16 +20,22 @@ export class FormResponsesService {
     this.logService.setContext(FormResponsesService.name);
   }
 
-  private extractInputBlocks(
-    blocks: FormBlockInstance[],
-  ): Array<{ id: string; label: string; blockType: string }> {
+  private extractInputBlocks(blocks: FormBlockInstance[]): Array<{
+    id: string;
+    label: string;
+    blockType: string;
+    options: string[];
+  }> {
     return blocks.flatMap((block) => {
-      if (!FormBlockNoInput.includes(block.blockType as any)) {
+      if (!FormBlockNoInput.includes(block.blockType as string)) {
         return [
           {
             id: block.id,
             label: (block.attributes?.label as string) || '',
             blockType: block.blockType,
+            options: Array.isArray(block.attributes?.options)
+              ? block.attributes.options
+              : [],
           },
         ];
       }
@@ -66,8 +72,109 @@ export class FormResponsesService {
     return `This action returns all formResponses`;
   }
 
-  update(id: number, updateFormResponseDto: UpdateFormResponseDto) {
-    return `This action updates a #${id} formResponse`;
+  async update(id: number, updateFormResponseDto: UpdateFormResponseDto) {
+    const { name, email, phone_number, university, status, dynamic_fields } =
+      updateFormResponseDto;
+    try {
+      const existingResponse =
+        await this.prismaService.formResponses.findUnique({
+          where: { id },
+          include: { field_value_responses: true },
+        });
+
+      if (!existingResponse) {
+        throw new BadRequestException('Form response not found!');
+      }
+      const formSections = await this.prismaService.formSections.findMany({
+        where: { form_id: existingResponse.form_id },
+        select: { json_blocks: true },
+      });
+      const allJsonBlocks: FormBlockInstance[] = formSections.flatMap(
+        (s) => s.json_blocks as FormBlockInstance[],
+      );
+      const blockTypes = this.extractBlockTypes(allJsonBlocks);
+      const updatedResponse = await this.prismaService.$transaction(
+        async (prisma) => {
+          const updatedFormResponse = await prisma.formResponses.update({
+            where: { id },
+            data: {
+              name,
+              email,
+              phone_number,
+              university_id: university,
+              status,
+            },
+          });
+
+          if (dynamic_fields && Object.keys(dynamic_fields).length > 0) {
+            await prisma.fieldValueResponses.deleteMany({
+              where: { form_response_id: id },
+            });
+
+            const fieldValueResponses = Object.entries(dynamic_fields)
+              .filter(([field_id]) => blockTypes[field_id])
+              .map(([field_id, value]) => {
+                const blockType = blockTypes[field_id];
+                const fieldData: any = {
+                  form_response_id: id,
+                  field_id,
+                };
+
+                // Xử lý giá trị dựa trên block type
+                switch (blockType) {
+                  case 'InputText':
+                  case 'TextArea':
+                  case 'EditorText':
+                  case 'SelectOption':
+                  case 'RadioSelect':
+                  case 'DatePicker':
+                  case 'TimePicker':
+                    fieldData.value_string = String(value);
+                    break;
+                  case 'InputNumber':
+                    fieldData.value_number = Number(value);
+                    break;
+                  case 'CheckBox':
+                  case 'RangePicker':
+                    fieldData.value_array = Array.isArray(value)
+                      ? value.map(String)
+                      : [String(value)];
+                    break;
+                  case 'Uploader':
+                  case 'Signature':
+                    fieldData.value_json = value;
+                    break;
+                  default:
+                    throw new BadRequestException(
+                      `Unsupported block type: ${blockType}`,
+                    );
+                }
+
+                return fieldData;
+              });
+
+            await prisma.fieldValueResponses.createMany({
+              data: fieldValueResponses,
+            });
+          }
+
+          return updatedFormResponse;
+        },
+      );
+
+      return {
+        name: updatedResponse.name,
+        email: updatedResponse.email,
+        phone_number: updatedResponse.phone_number,
+        university: updatedResponse.university_id,
+        status: updatedResponse.status,
+        dynamic_fields: dynamic_fields || {},
+      };
+      return updateFormResponseDto;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
   }
 
   remove(id: number) {
@@ -314,7 +421,7 @@ export class FormResponsesService {
     }
   }
 
-  async submitForm(data: SubmitFormDto) {
+  async submitForm(data: CreateFormResponseDto) {
     const { form_id, name, email, phone_number, university, ...dynamicFields } =
       data;
     try {
@@ -345,6 +452,7 @@ export class FormResponsesService {
             section.json_blocks as FormBlockInstance[],
           ),
         }));
+
       const formStructure = JSON.stringify(simplifiedStructure);
       const version = crypto
         .createHash('md5')
@@ -460,7 +568,12 @@ export class FormResponsesService {
 
       const snapshotStructure = snapshot.snapshot_json as Array<{
         name: string;
-        blocks: Array<{ id: string; label: string; blockType: string }>;
+        blocks: Array<{
+          id: string;
+          label: string;
+          blockType: string;
+          options?: string[];
+        }>;
       }>;
 
       const fieldValues = formResponse.field_value_responses.reduce(
@@ -488,6 +601,7 @@ export class FormResponsesService {
           label: block.label,
           blockType: block.blockType,
           value: fieldValues[block.id] ?? null,
+          options: block.options || [],
         })),
       }));
 

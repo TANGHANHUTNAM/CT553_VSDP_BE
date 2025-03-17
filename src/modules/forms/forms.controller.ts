@@ -24,6 +24,7 @@ import { multerOptions } from 'src/config/multer.config';
 import { UpdateFormUploadImage } from './dto/update-form-uploadImage';
 import { UpdateFormBuilderDto } from './dto/update-form-builder.dto';
 import { UpdateStatusPublicFormDto } from './dto/update-status-public-form.dto';
+import { GetStatsDto } from './dto/stats-form.dto';
 
 @Controller('forms')
 export class FormsController {
@@ -114,13 +115,7 @@ export class FormsController {
     return this.formsService.getPublicFormScholarship();
   }
 
-  @Public()
-  @ResMessage('Lấy biểu mẫu share link')
-  @Get('public/share-link/:id')
-  getPublicFormShareLink(@Param('id') id: string) {
-    return this.formsService.getPublicFormShareLink(id);
-  }
-
+  @ResMessage('Xuất file excel thành công!')
   @Get(':id/export-excel')
   async exportToExcel(@Param('id') formId: string, @Res() res: Response) {
     const buffer = await this.formsService.exportFormResponsesToExcel(formId);
@@ -132,5 +127,41 @@ export class FormsController {
     });
 
     res.send(buffer);
+  }
+
+  @ResMessage('Lấy link chia sẻ biểu mẫu thành công!')
+  @Post(':id/share-link')
+  createShareLinkForm(
+    @Param('id') id: string,
+    @Body() data: { expiry_dates: number },
+  ) {
+    return this.formsService.createShareLinkForm(id, +data.expiry_dates);
+  }
+
+  @ResMessage('Lấy biểu mẫu chia sẻ từ link thành công!')
+  @Public()
+  @Get('share-link/:id')
+  getFormFromShareLink(@Param('id') id: string, @Query('token') token: string) {
+    return this.formsService.getFormFromShareLink(id, token);
+  }
+
+  @ResMessage('Lấy thống kê biểu mẫu thành công!')
+  @Post('stats')
+  getFormStats(@Body() data: GetStatsDto) {
+    return this.formsService.getFormStats(data);
+  }
+
+  @Get(':id/block-type')
+  getFieldBlockTypes(@Param('id') id: string) {
+    return this.formsService.getFieldBlockTypes(id);
+  }
+
+  @ResMessage('Lấy thống kê theo loại trường dữ liệu thành công!')
+  @Get(':id/field-type')
+  getFieldOptionStats(
+    @Param('id') id: string,
+    @Query('field_id') field_id: string,
+  ) {
+    return this.formsService.getFieldOptionStats(id, field_id);
   }
 }

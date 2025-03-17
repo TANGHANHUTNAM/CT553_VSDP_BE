@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from 'src/core/prisma.service';
+import { LogService } from 'src/log/log.service';
 import { CreateSectionsFormDto } from './dto/create-sections-form.dto';
 import { UpdateSectionsFormDto } from './dto/update-sections-form.dto';
-import { LogService } from 'src/log/log.service';
-import { PrismaService } from 'src/core/prisma.service';
-import { SubmitFormDto } from './dto/submit-form.dto';
+
 import {
   FormBlockInstance,
   FormBlockType,

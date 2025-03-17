@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { CreateFormDto } from './dto/create-form.dto';
 import { UpdateFormDto } from './dto/update-form.dto';
 import { PrismaService } from 'src/core/prisma.service';
@@ -13,6 +17,8 @@ import { UpdateStatusPublicFormDto } from './dto/update-status-public-form.dto';
 import * as ExcelJS from 'exceljs';
 
 import { Buffer } from 'buffer';
+import { generateRandomUuid } from 'src/shared/func';
+import { GetStatsDto, GroupBy } from './dto/stats-form.dto';
 @Injectable()
 export class FormsService {
   constructor(
@@ -112,11 +118,14 @@ export class FormsService {
       if (!forms) {
         throw new BadRequestException('Form not found');
       }
-      const universities = await this.prisma.universities.findMany({});
-      return {
-        ...forms,
-        universities,
-      };
+      if (forms.scope === 'SCHOLARSHIP') {
+        const universities = await this.prisma.universities.findMany({});
+        return {
+          ...forms,
+          universities,
+        };
+      }
+      return forms;
     } catch (error) {
       this.logService.error(error);
       throw error;
@@ -393,14 +402,6 @@ export class FormsService {
     }
   }
 
-  async getPublicFormShareLink(id: string) {
-    try {
-    } catch (error) {
-      this.logService.error(error);
-      throw error;
-    }
-  }
-
   async exportFormResponsesToExcel(formId: string): Promise<Buffer> {
     try {
       const formResponses = await this.prisma.formResponses.findMany({
@@ -453,14 +454,14 @@ export class FormsService {
 
       const headers = [
         { header: 'ID', key: 'id', width: 10 },
-        { header: 'Name', key: 'name', width: 20 },
+        { header: 'Họ tên', key: 'name', width: 20 },
         { header: 'Email', key: 'email', width: 30 },
-        { header: 'Phone Number', key: 'phone_number', width: 15 },
-        { header: 'University', key: 'university', width: 20 },
-        { header: 'Final Scores', key: 'final_scores', width: 15 },
-        { header: 'Total Final Score', key: 'total_final_score', width: 15 },
-        { header: 'Status', key: 'status', width: 15 },
-        { header: 'Created At', key: 'created_at', width: 20 },
+        { header: 'Số điện thoại', key: 'phone_number', width: 15 },
+        { header: 'Trường học', key: 'university', width: 20 },
+        { header: 'Điểm từng phần', key: 'final_scores', width: 15 },
+        { header: 'Tổng điểm', key: 'total_final_score', width: 15 },
+        { header: 'Trạng thái', key: 'status', width: 15 },
+        { header: 'Thời gian nộp', key: 'created_at', width: 20 },
         ...Array.from(allFields.entries()).map(([fieldId, field]) => ({
           header: field.label || fieldId,
           key: fieldId,
@@ -502,7 +503,7 @@ export class FormsService {
       });
 
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Form Responses');
+      const worksheet = workbook.addWorksheet('Data Forms');
 
       worksheet.columns = headers;
       worksheet.addRows(rows);
@@ -515,6 +516,456 @@ export class FormsService {
 
       const buffer = (await workbook.xlsx.writeBuffer()) as Buffer;
       return buffer;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async createShareLinkForm(form_id: string, expiry_dates: number) {
+    try {
+      const form = await this.prisma.form.findUnique({
+        where: { id: form_id },
+      });
+      if (!form) {
+        throw new BadRequestException('Form not found');
+      }
+      const shareToken = generateRandomUuid();
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + expiry_dates);
+      const formShareLink = await this.prisma.form.update({
+        where: { id: form_id },
+        data: {
+          share_token: shareToken,
+          share_expiry: expiryDate,
+        },
+      });
+      return `${process.env.FRONTEND_URL}/share-link/${form_id}?token=${shareToken}`;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async getFormFromShareLink(form_id: string, token: string) {
+    try {
+      const form = await this.prisma.form.findUnique({
+        where: { id: form_id },
+        include: {
+          form_sections: {
+            orderBy: {
+              id: 'asc',
+            },
+          },
+        },
+      });
+      if (!form) {
+        throw new BadRequestException('Form not found');
+      }
+      const nowDate = new Date();
+      if (
+        !form.is_public ||
+        token !== form.share_token ||
+        form.share_expiry <= nowDate
+      ) {
+        throw new ForbiddenException('Bạn không có quyền truy cập!');
+      }
+      if (form.scope === 'SCHOLARSHIP') {
+        const universities = await this.prisma.universities.findMany({
+          where: {
+            is_active: true,
+          },
+        });
+        return {
+          ...form,
+          universities,
+        };
+      }
+      return form;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async getFormStats(dto: GetStatsDto) {
+    const { form_id, group_by, start, end } = dto;
+
+    try {
+      const form = await this.prisma.form.findUnique({
+        where: { id: form_id },
+        select: { scope: true },
+      });
+
+      if (!form) {
+        throw new BadRequestException('Form not found');
+      }
+
+      const whereClause: any = { form_id };
+      if (start && end) {
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+
+        endDate.setHours(23, 59, 59, 999);
+
+        whereClause.created_at = {
+          gte: startDate,
+          lte: endDate,
+        };
+      }
+      const today = new Date(); // Ngày hiện tại theo yêu cầu
+      const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+      const newResponsesToday = await this.prisma.formResponses.count({
+        where: {
+          form_id,
+          created_at: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+      });
+      const baseStats = await this.getBaseStats(form_id, group_by, whereClause);
+      let specificStats = {};
+
+      if (form.scope === 'SCHOLARSHIP') {
+        specificStats = {
+          ...(await this.getScholarshipStats(form_id)),
+        };
+      }
+
+      return {
+        form_id,
+        scope: form.scope,
+        group_by: group_by,
+        new_responses_today: newResponsesToday,
+        ...baseStats,
+        ...specificStats,
+      };
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  private async getBaseStats(
+    form_id: string,
+    groupBy: GroupBy,
+    whereClause: any,
+  ) {
+    const totalResponses = await this.prisma.formResponses.count({
+      where: whereClause,
+    });
+
+    let responseTrend;
+    if (groupBy === 'day') {
+      if (whereClause.created_at) {
+        responseTrend = await this.prisma.$queryRaw`
+        SELECT 
+          DATE(created_at) AS date,
+          COUNT(*) AS count
+        FROM "FormResponses"
+        WHERE form_id = ${form_id}
+          AND created_at BETWEEN ${whereClause.created_at.gte} AND ${whereClause.created_at.lte}
+        GROUP BY DATE(created_at)
+        ORDER BY date;
+      `;
+      } else {
+        responseTrend = await this.prisma.$queryRaw`
+        SELECT 
+          DATE(created_at) AS date,
+          COUNT(*) AS count
+        FROM "FormResponses"
+        WHERE form_id = ${form_id}
+        GROUP BY DATE(created_at)
+        ORDER BY date;
+      `;
+      }
+
+      return {
+        total_responses: totalResponses,
+        response_trend: responseTrend.map((item: any) => ({
+          date: item.date.toISOString().split('T')[0],
+          count: Number(item.count),
+        })),
+      };
+    }
+
+    if (groupBy === 'month') {
+      if (whereClause.created_at) {
+        responseTrend = await this.prisma.$queryRaw`
+        SELECT 
+          EXTRACT(YEAR FROM created_at) AS year,
+          EXTRACT(MONTH FROM created_at) AS month,
+          COUNT(*) AS count
+        FROM "FormResponses"
+        WHERE form_id = ${form_id}
+          AND created_at BETWEEN ${whereClause.created_at.gte} AND ${whereClause.created_at.lte}
+        GROUP BY 
+          EXTRACT(YEAR FROM created_at),
+          EXTRACT(MONTH FROM created_at)
+        ORDER BY year, month;
+      `;
+      } else {
+        responseTrend = await this.prisma.$queryRaw`
+        SELECT 
+          EXTRACT(YEAR FROM created_at) AS year,
+          EXTRACT(MONTH FROM created_at) AS month,
+          COUNT(*) AS count
+        FROM "FormResponses"
+        WHERE form_id = ${form_id}
+        GROUP BY 
+          EXTRACT(YEAR FROM created_at),
+          EXTRACT(MONTH FROM created_at)
+        ORDER BY year, month;
+      `;
+      }
+
+      return {
+        total_responses: totalResponses,
+        response_trend: responseTrend.map((item: any) => ({
+          year: item.year,
+          month: item.month,
+          count: Number(item.count),
+        })),
+      };
+    }
+
+    throw new BadRequestException('Invalid groupBy value');
+  }
+
+  private async getScholarshipStats(form_id: string) {
+    // Phân bố trạng thái
+    const statusDistribution = await this.prisma.formResponses.groupBy({
+      by: ['status'],
+      where: { form_id },
+      _count: { status: true },
+    });
+
+    const statusStats = statusDistribution.reduce(
+      (acc, item) => {
+        acc[item.status] = item._count.status;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    // Điểm trung bình
+    const scoreStats = await this.prisma.formResponses.aggregate({
+      where: { form_id, total_final_score: { not: null } },
+      _avg: { total_final_score: true },
+      _count: { total_final_score: true },
+    });
+
+    // Lấy tất cả trường đại học từ bảng Universities
+    const allUniversities = await this.prisma.universities.findMany({
+      select: { id: true, name: true },
+    });
+
+    // Thống kê số lượng sinh viên theo trường từ formResponses
+    const universityDistribution = await this.prisma.formResponses.groupBy({
+      by: ['university_id'],
+      where: { form_id, university_id: { not: null } },
+      _count: { university_id: true },
+    });
+
+    // Tạo map từ dữ liệu thống kê
+    const universityCountMap = new Map<string, number>();
+    universityDistribution.forEach((item) => {
+      universityCountMap.set(
+        item.university_id.toString(),
+        item._count.university_id,
+      );
+    });
+
+    // Tạo universityStats với tất cả trường, bao gồm count = 0
+    const universityStats = allUniversities.map((university) => ({
+      university: university.name,
+      count: universityCountMap.get(university.id.toString()) || 0,
+    }));
+
+    // Tỷ lệ đậu/rớt
+    const passFailStats = {
+      passed: statusStats['PASSED'] || 0,
+      failed: statusStats['FAILED'] || 0,
+      pass_rate: statusStats['PASSED']
+        ? (
+            (statusStats['PASSED'] /
+              (statusStats['PASSED'] + statusStats['FAILED'])) *
+            100
+          ).toFixed(2)
+        : '0',
+    };
+
+    return {
+      status_distribution: statusStats,
+      average_score: scoreStats._avg.total_final_score?.toFixed(2) || 0,
+      scored_responses: scoreStats._count.total_final_score,
+      university_distribution: universityStats,
+      pass_fail_stats: passFailStats,
+    };
+  }
+
+  async getFieldOptionStats(form_id: string, field_id?: string) {
+    try {
+      const form = await this.prisma.form.findUnique({
+        where: { id: form_id },
+        select: { scope: true },
+      });
+      if (!form) {
+        throw new BadRequestException('Form không tồn tại');
+      }
+
+      const responses = await this.prisma.formResponses.findMany({
+        where: { form_id },
+        include: {
+          snapshot: true,
+          field_value_responses: field_id ? { where: { field_id } } : true,
+        },
+      });
+
+      if (responses.length === 0) {
+        return { message: 'Không có phản hồi nào cho form này', stats: {} };
+      }
+
+      const snapshotMap = new Map<string, any>();
+      responses.forEach((response) => {
+        if (response.snapshot) {
+          snapshotMap.set(
+            response.snapshot_version,
+            response.snapshot.snapshot_json,
+          );
+        }
+      });
+
+      const targetBlockTypes = ['SelectOption', 'CheckBox', 'RadioSelect'];
+      const fieldOptions = new Map<
+        string,
+        { label: string; options: string[]; blockType: string }
+      >();
+
+      for (const snapshotJson of snapshotMap.values()) {
+        snapshotJson.forEach((section: any) => {
+          section.blocks.forEach((block: any) => {
+            if (
+              targetBlockTypes.includes(block.blockType) &&
+              (!field_id || block.id === field_id)
+            ) {
+              fieldOptions.set(block.id, {
+                label: block.label,
+                options: block.options || [],
+                blockType: block.blockType,
+              });
+            }
+          });
+        });
+      }
+
+      if (field_id && !fieldOptions.has(field_id)) {
+        throw new BadRequestException(
+          'Field không tồn tại hoặc không phải loại SelectOption/CheckBox/RadioSelect',
+        );
+      }
+
+      const stats = new Map<
+        string,
+        { label: string; blockType: string; options: Record<string, number> }
+      >();
+      fieldOptions.forEach((field, fid) => {
+        const optionCounts: Record<string, number> = {};
+        field.options.forEach((opt: string) => (optionCounts[opt] = 0));
+
+        responses.forEach((response) => {
+          response.field_value_responses.forEach((fieldValue) => {
+            if (fieldValue.field_id === fid) {
+              if (field.blockType === 'CheckBox' && fieldValue.value_array) {
+                fieldValue.value_array.forEach((val: string) => {
+                  if (optionCounts.hasOwnProperty(val)) {
+                    optionCounts[val]++;
+                  }
+                });
+              } else if (fieldValue.value_string) {
+                const val = fieldValue.value_string;
+                if (optionCounts.hasOwnProperty(val)) {
+                  optionCounts[val]++;
+                }
+              }
+            }
+          });
+        });
+
+        stats.set(fid, {
+          label: field.label,
+          blockType: field.blockType,
+          options: optionCounts,
+        });
+      });
+
+      return {
+        form_id,
+        stats: Object.fromEntries(stats),
+      };
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
+  async getFieldBlockTypes(form_id: string) {
+    try {
+      // Kiểm tra form tồn tại
+      const form = await this.prisma.form.findUnique({
+        where: { id: form_id },
+        select: { scope: true },
+      });
+      if (!form) {
+        throw new BadRequestException('Form không tồn tại');
+      }
+
+      // Lấy tất cả snapshot của form
+      const snapshots = await this.prisma.formSnapshots.findMany({
+        where: { form_id },
+        select: { snapshot_json: true },
+      });
+
+      if (snapshots.length === 0) {
+        return { form_id, fields: [] };
+      }
+
+      // Lọc các field có blockType cần thiết
+      const targetBlockTypes = ['SelectOption', 'CheckBox', 'RadioSelect'];
+      const fieldMap = new Map<
+        string,
+        { label: string; blockType: string; options: string[] }
+      >();
+
+      snapshots.forEach((snapshot) => {
+        snapshot.snapshot_json.forEach((section: any) => {
+          section.blocks.forEach((block: any) => {
+            if (
+              targetBlockTypes.includes(block.blockType) &&
+              !fieldMap.has(block.id)
+            ) {
+              fieldMap.set(block.id, {
+                label: block.label,
+                blockType: block.blockType,
+                options: block.options || [],
+              });
+            }
+          });
+        });
+      });
+
+      return {
+        form_id,
+        fields: Array.from(fieldMap.entries()).map(([field_id, data]) => ({
+          field_id,
+          label: data.label,
+          blockType: data.blockType,
+          options: data.options,
+        })),
+      };
     } catch (error) {
       this.logService.error(error);
       throw error;
