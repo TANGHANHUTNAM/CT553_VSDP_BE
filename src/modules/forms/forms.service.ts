@@ -613,7 +613,7 @@ export class FormsService {
           lte: endDate,
         };
       }
-      const today = new Date(); // Ngày hiện tại theo yêu cầu
+      const today = new Date();
       const startOfDay = new Date(today.setHours(0, 0, 0, 0));
       const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
@@ -655,7 +655,7 @@ export class FormsService {
     whereClause: any,
   ) {
     const totalResponses = await this.prisma.formResponses.count({
-      where: whereClause,
+      where: { form_id },
     });
 
     let responseTrend;
@@ -694,6 +694,14 @@ export class FormsService {
 
     if (groupBy === 'month') {
       if (whereClause.created_at) {
+        const startDate = new Date(whereClause.created_at.gte);
+        const endDate = new Date(whereClause.created_at.lte);
+
+        const startYear = startDate.getFullYear();
+        const startMonth = startDate.getMonth() + 1;
+        const endYear = endDate.getFullYear();
+        const endMonth = endDate.getMonth() + 1;
+
         responseTrend = await this.prisma.$queryRaw`
         SELECT 
           EXTRACT(YEAR FROM created_at) AS year,
@@ -701,7 +709,8 @@ export class FormsService {
           COUNT(*) AS count
         FROM "FormResponses"
         WHERE form_id = ${form_id}
-          AND created_at BETWEEN ${whereClause.created_at.gte} AND ${whereClause.created_at.lte}
+          AND EXTRACT(YEAR FROM created_at) * 12 + EXTRACT(MONTH FROM created_at)
+              BETWEEN ${startYear * 12 + startMonth} AND ${endYear * 12 + endMonth}
         GROUP BY 
           EXTRACT(YEAR FROM created_at),
           EXTRACT(MONTH FROM created_at)

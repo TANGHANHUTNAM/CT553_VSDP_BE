@@ -26,6 +26,8 @@ import { FormsModule } from './modules/forms/forms.module';
 import { SectionsFormModule } from './modules/sections-form/sections-form.module';
 import { UniversityModule } from './modules/university/university.module';
 import { FormResponsesModule } from './modules/form-responses/form-responses.module';
+import { ScoringSectionsModule } from './modules/scoring-sections/scoring-sections.module';
+import { ScoringCriteriasModule } from './modules/scoring-criterias/scoring-criterias.module';
 
 @Global()
 @Module({
@@ -70,6 +72,8 @@ import { FormResponsesModule } from './modules/form-responses/form-responses.mod
     SectionsFormModule,
     UniversityModule,
     FormResponsesModule,
+    ScoringSectionsModule,
+    ScoringCriteriasModule,
   ],
   controllers: [AppController],
   providers: [
