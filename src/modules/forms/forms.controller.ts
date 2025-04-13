@@ -86,9 +86,10 @@ export class FormsController {
     return this.formsService.updateStatusPublic(id, updateStatusPublic);
   }
 
+  @ResMessage('Xóa biểu mẫu thành công!')
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.formsService.remove(+id);
+    return this.formsService.remove(id);
   }
 
   @ResMessage('Cập nhật style biểu mẫu thành công!')
@@ -136,6 +137,12 @@ export class FormsController {
     @Body() data: { expiry_dates: number },
   ) {
     return this.formsService.createShareLinkForm(id, +data.expiry_dates);
+  }
+
+  @ResMessage('Lấy ngày hết hạn link chia sẻ biểu mẫu thành công!')
+  @Get(':id/share-link/expiry-date')
+  getShareLinkExpiryDate(@Param('id') id: string) {
+    return this.formsService.getShareLinkExpiryDate(id);
   }
 
   @ResMessage('Lấy biểu mẫu chia sẻ từ link thành công!')

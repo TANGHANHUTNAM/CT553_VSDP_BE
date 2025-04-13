@@ -64,7 +64,7 @@ export class UsersService {
 
   async updateUserRefreshToken(
     id: number,
-    refresh_token: string | null,
+    refresh_token: string,
   ): Promise<User> {
     try {
       const user = await this.prisma.user.update({

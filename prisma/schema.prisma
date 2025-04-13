@@ -112,7 +112,7 @@ model FormSections {
   created_at  DateTime @default(now()) @db.Timestamptz
   updated_at  DateTime @updatedAt @db.Timestamptz
   form_id     String
-  form        Form     @relation(fields: [form_id], references: [id])
+  form        Form     @relation(fields: [form_id], references: [id], onDelete: Cascade)
 }
 
 model FormResponses {
@@ -124,7 +124,7 @@ model FormResponses {
   snapshot             FormSnapshots         @relation(fields: [snapshot_version], references: [version])
   created_at           DateTime?             @default(now()) @db.Timestamptz
   form_id              String
-  form                 Form                  @relation(fields: [form_id], references: [id])
+  form                 Form                  @relation(fields: [form_id], references: [id], onDelete: Cascade)
   status               ApplicantStatus?      @default(SUBMITTED)
   university_id        Int?                  @default(dbgenerated("NULL"))
   university           Universities?         @relation(fields: [university_id], references: [id])
@@ -134,6 +134,9 @@ model FormResponses {
   total_final_score    Int?
   field_value_responses FieldValueResponses[]
   updated_at           DateTime?             @updatedAt @db.Timestamptz
+  notes                String?           
+  rejected_reason       String?               
+  
 
   @@index([name])
   @@index([email])
@@ -148,7 +151,7 @@ model FormResponses {
 model FormSnapshots {
   id            Int            @id @default(autoincrement())
   form_id       String
-  form          Form           @relation(fields: [form_id], references: [id])
+  form          Form           @relation(fields: [form_id], references: [id], onDelete: Cascade)
   version       String          @unique
   snapshot_json Json[]         @default([])     
   created_at    DateTime       @default(now()) @db.Timestamptz
@@ -165,8 +168,9 @@ model FieldValueResponses {
   value_number    Float?        
   value_array     String[]     
   value_json      Json?    
-  form_response   FormResponses @relation(fields: [form_response_id], references: [id])
+  form_response   FormResponses @relation(fields: [form_response_id], references: [id], onDelete: Cascade)
 
+  @@unique([form_response_id, field_id])
   @@index([form_response_id])
   @@index([field_id])
   @@index([value_number])
@@ -190,7 +194,7 @@ model ScoringSections {
   created_at           DateTime              @default(now()) @db.Timestamptz
   updated_at           DateTime              @updatedAt @db.Timestamptz
   form_id              String
-  form                 Form                  @relation(fields: [form_id], references: [id])
+  form                 Form                  @relation(fields: [form_id], references: [id], onDelete: Cascade)
   scoring_criteria     ScoringCriterias[]
   response_assignments ResponseAssignments[]
 }
@@ -204,7 +208,7 @@ model ScoringCriterias {
   created_at         DateTime         @default(now()) @db.Timestamptz
   updated_at         DateTime         @updatedAt @db.Timestamptz
   scoring_section_id Int
-  scoring_section    ScoringSections  @relation(fields: [scoring_section_id], references: [id])
+  scoring_section    ScoringSections  @relation(fields: [scoring_section_id], references: [id], onDelete: Cascade)
   response_scores    ResponseScores[]
 }
 
@@ -215,13 +219,14 @@ model ResponseScores {
   created_at          DateTime         @default(now()) @db.Timestamptz
   updated_at          DateTime         @updatedAt @db.Timestamptz
   form_response_id    Int
-  form_response       FormResponses    @relation(fields: [form_response_id], references: [id])
+  form_response       FormResponses    @relation(fields: [form_response_id], references: [id], onDelete: Cascade)
   scoring_criteria_id Int
-  scoring_criteria    ScoringCriterias @relation(fields: [scoring_criteria_id], references: [id])
+  scoring_criteria    ScoringCriterias @relation(fields: [scoring_criteria_id], references: [id], onDelete: Cascade)
   user_id             Int
-  user                User             @relation(fields: [user_id], references: [id])
+  user                User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
   finalized_by        Int?
   finalized_at        DateTime?
+  rejection_reason   String?
 
   @@index([form_response_id, scoring_criteria_id, user_id])
 }
@@ -229,12 +234,13 @@ model ResponseScores {
 model ResponseAssignments {
   id                 Int             @id @default(autoincrement())
   is_completed       Boolean         @default(false)
+  completed_at       DateTime?
   form_response_id   Int
-  form_response      FormResponses   @relation(fields: [form_response_id], references: [id])
+  form_response      FormResponses   @relation(fields: [form_response_id], references: [id], onDelete: Cascade)
   user_id            Int
   user               User            @relation(fields: [user_id], references: [id])
   scoring_section_id Int
-  scoring_section    ScoringSections @relation(fields: [scoring_section_id], references: [id])
+  scoring_section    ScoringSections @relation(fields: [scoring_section_id], references: [id], onDelete: Cascade)
   created_at         DateTime        @default(now()) @db.Timestamptz
   updated_at         DateTime        @updatedAt @db.Timestamptz
 
@@ -259,11 +265,10 @@ model SiteConfig {
 }
 
 enum ApplicantStatus {
-  SUBMITTED // Đã nộp
-  CHECKED // Đã kiểm tra
-  REJECTED // Bị từ chối
-  ASSIGNED // Đã giao
-  REVIEWING // Đang chấm điểm
+  SUBMITTED // Đang chờ xử lý
+  CHECKED // Chấp nhận
+  REJECTED // Từ chối
+  INTERVIEWING // Phỏng vấn
   FAILED // Rớt
   PASSED // Đậu
 }

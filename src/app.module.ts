@@ -28,6 +28,9 @@ import { UniversityModule } from './modules/university/university.module';
 import { FormResponsesModule } from './modules/form-responses/form-responses.module';
 import { ScoringSectionsModule } from './modules/scoring-sections/scoring-sections.module';
 import { ScoringCriteriasModule } from './modules/scoring-criterias/scoring-criterias.module';
+import { FormAssginmentResponseModule } from './modules/form-assginment-response/form-assginment-response.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ReviewApplicantModule } from './modules/review-applicant/review-applicant.module';
 
 @Global()
 @Module({
@@ -74,6 +77,9 @@ import { ScoringCriteriasModule } from './modules/scoring-criterias/scoring-crit
     FormResponsesModule,
     ScoringSectionsModule,
     ScoringCriteriasModule,
+    FormAssginmentResponseModule,
+    NotificationsModule,
+    ReviewApplicantModule,
   ],
   controllers: [AppController],
   providers: [

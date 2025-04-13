@@ -7,5 +7,6 @@ import { SectionsFormModule } from '../sections-form/sections-form.module';
   controllers: [FormResponsesController],
   providers: [FormResponsesService],
   imports: [SectionsFormModule],
+  exports: [FormResponsesService],
 })
 export class FormResponsesModule {}

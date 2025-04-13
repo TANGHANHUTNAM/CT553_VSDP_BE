@@ -239,8 +239,19 @@ export class FormsService {
     }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} form`;
+  async remove(id: string) {
+    try {
+      if (!id) {
+        throw new BadRequestException('Id is required');
+      }
+      const form = await this.prisma.form.delete({
+        where: { id },
+      });
+      return form;
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
   }
 
   async updateStyleForm(id: string, data: UpdateFormUploadImage, image: any) {
@@ -522,6 +533,24 @@ export class FormsService {
     }
   }
 
+  async getShareLinkExpiryDate(form_id: string) {
+    try {
+      if (!form_id) {
+        throw new BadRequestException('Id is required');
+      }
+      const form = await this.prisma.form.findUnique({
+        where: { id: form_id },
+      });
+      return {
+        expiry_date: form?.share_expiry,
+        link: `${process.env.FRONTEND_URL}/share-link/${form_id}?token=${form?.share_token}`,
+      };
+    } catch (error) {
+      this.logService.error(error);
+      throw error;
+    }
+  }
+
   async createShareLinkForm(form_id: string, expiry_dates: number) {
     try {
       const form = await this.prisma.form.findUnique({
@@ -540,7 +569,10 @@ export class FormsService {
           share_expiry: expiryDate,
         },
       });
-      return `${process.env.FRONTEND_URL}/share-link/${form_id}?token=${shareToken}`;
+      return {
+        link: `${process.env.FRONTEND_URL}/share-link/${form_id}?token=${shareToken}`,
+        expiry_date: expiryDate,
+      };
     } catch (error) {
       this.logService.error(error);
       throw error;

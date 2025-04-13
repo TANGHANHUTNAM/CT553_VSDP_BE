@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -26,15 +28,26 @@ export class FormResponsesController {
     return this.formResponsesService.create(createFormResponseDto);
   }
 
-  @Get()
-  findAll() {
-    return this.formResponsesService.findAll();
+  @ResMessage('Lấy tất cả hồ sơ đang chờ xử lý!')
+  @Get('by_form/:id/filter')
+  findAllResponseToFilterByForm(@Param('id') form_id: string) {
+    return this.formResponsesService.findAllResponseToFilterByForm(form_id);
   }
 
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.formResponsesService.findOne(+id);
-  // }
+  @ResMessage('Duyệt hồ sơ thành công!')
+  @Patch('approve/:id')
+  approveResponse(@Param('id') id: string) {
+    return this.formResponsesService.approveResponse(+id);
+  }
+
+  @ResMessage('Từ chối hồ sơ thành công!')
+  @Patch('reject/:id')
+  rejectResponse(
+    @Param('id') id: string,
+    @Body() data: { rejected_reason: string },
+  ) {
+    return this.formResponsesService.rejectResponse(+id, data.rejected_reason);
+  }
 
   @ResMessage('Cập nhật phản hồi biểu mẫu thành công!')
   @Patch(':id')
@@ -45,6 +58,7 @@ export class FormResponsesController {
     return this.formResponsesService.update(+id, updateFormResponseDto);
   }
 
+  @ResMessage('Xóa phản hồi biểu mẫu thành công!')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.formResponsesService.remove(+id);
@@ -62,8 +76,14 @@ export class FormResponsesController {
     return this.formResponsesService.getFormResponseByFormId(data);
   }
 
+  @ResMessage('Xem chi tiết phản hồi')
   @Get(':id')
   getFormResponseDetail(@Param('id') id: string) {
     return this.formResponsesService.getFormResponseDetail(+id);
+  }
+
+  @Get(':id/update')
+  getFormResponseUpdate(@Param('id') id: string) {
+    return this.formResponsesService.getFormResponseUpdate(+id);
   }
 }
