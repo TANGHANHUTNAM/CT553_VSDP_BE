@@ -229,6 +229,7 @@ model ResponseScores {
   rejection_reason   String?
 
   @@index([form_response_id, scoring_criteria_id, user_id])
+  @@unique([form_response_id, scoring_criteria_id, user_id])
 }
 
 model ResponseAssignments {
@@ -263,6 +264,8 @@ model SiteConfig {
   created_at  DateTime @default(now()) @db.Timestamptz
   updated_at  DateTime @updatedAt @db.Timestamptz
 }
+
+
 
 enum ApplicantStatus {
   SUBMITTED // Đang chờ xử lý

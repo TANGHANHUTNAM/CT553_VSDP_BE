@@ -13,6 +13,9 @@ import { ReviewApplicantService } from './review-applicant.service';
 import { CreateReviewApplicantDto } from './dto/create-review-applicant.dto';
 import { UpdateReviewApplicantDto } from './dto/update-review-applicant.dto';
 import { ResMessage } from 'src/common/decorators/response.decorator';
+import { ReqUser } from 'src/common/decorators/user.decorator';
+import { SaveScoresDto } from './dto/save-scores.dto';
+import { IUser } from '../users/interface/users.interface';
 
 @Controller('review-applicant')
 export class ReviewApplicantController {
@@ -63,5 +66,20 @@ export class ReviewApplicantController {
       +query.user_id,
       +query.assignment_id,
     );
+  }
+
+  @Post('scores')
+  @ResMessage('Chấm điểm hồ sơ thành công!')
+  async saveScores(
+    @ReqUser() user: IUser,
+    @Body() saveScoresDto: SaveScoresDto,
+  ) {
+    return this.reviewApplicantService.saveScores(user.id, saveScoresDto);
+  }
+
+  @Get('/completed')
+  @ResMessage('Lấy danh sách hồ sơ hoàn thành thành công!')
+  async getCompletedAssignments(@ReqUser() user: IUser) {
+    return this.reviewApplicantService.getCompletedAssignments(user.id);
   }
 }

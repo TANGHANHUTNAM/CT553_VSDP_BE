@@ -46,3 +46,20 @@ export function generateRandomUuid(): string {
     Math.random().toString(36).substring(2, 15)
   );
 }
+
+export function maskEmail(email: string): string {
+  const [localPart, domain] = email.split('@');
+  if (localPart.length <= 3) {
+    return `${localPart[0]}****@${domain}`;
+  }
+  const visiblePart = localPart.slice(0, 3);
+  return `${visiblePart}****@${domain}`;
+}
+
+export function maskPhoneNumber(phone: string | null): string {
+  if (!phone) return '';
+  if (phone.length <= 7) {
+    return phone.slice(0, -3) + '***';
+  }
+  return phone.slice(0, 7) + '***';
+}

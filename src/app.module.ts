@@ -31,6 +31,8 @@ import { ScoringCriteriasModule } from './modules/scoring-criterias/scoring-crit
 import { FormAssginmentResponseModule } from './modules/form-assginment-response/form-assginment-response.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReviewApplicantModule } from './modules/review-applicant/review-applicant.module';
+import { PublicModule } from './public/public.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Global()
 @Module({
@@ -80,6 +82,8 @@ import { ReviewApplicantModule } from './modules/review-applicant/review-applica
     FormAssginmentResponseModule,
     NotificationsModule,
     ReviewApplicantModule,
+    PublicModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

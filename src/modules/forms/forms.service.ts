@@ -784,12 +784,20 @@ export class FormsService {
       _count: { status: true },
     });
 
+    // Tạo object thống kê trạng thái
     const statusStats = statusDistribution.reduce(
       (acc, item) => {
         acc[item.status] = item._count.status;
         return acc;
       },
-      {} as Record<string, number>,
+      {
+        SUBMITTED: 0,
+        CHECKED: 0,
+        REJECTED: 0,
+        INTERVIEWING: 0,
+        PASSED: 0,
+        FAILED: 0,
+      } as Record<string, number>,
     );
 
     // Điểm trung bình

@@ -19,10 +19,7 @@ import { Public } from 'src/common/decorators/public.decorator';
 
 @Controller('notifications')
 export class NotificationsController {
-  constructor(
-    private readonly notificationsService: NotificationsService,
-    private readonly jwtService: JwtService,
-  ) {}
+  constructor(private readonly notificationsService: NotificationsService) {}
 
   @Public()
   @Sse('events')
